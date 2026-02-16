@@ -138,7 +138,7 @@ class FluxAPI extends Tool {
 
     this.name = 'flux';
     this.description =
-      'Use Flux to generate images from text descriptions. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls.';
+      'Use Flux to generate images from text descriptions. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls. Uses flux-pro-1.1 by default for best quality.';
 
     this.description_for_model = `// Transform any image description into a detailed, high-quality prompt. Never submit a prompt under 3 sentences. Follow these core rules:
     // 1. ALWAYS enhance basic prompts into 5-10 detailed sentences (e.g., "a cat" becomes: "A close-up photo of a sleek Siamese cat with piercing blue eyes. The cat sits elegantly on a vintage leather armchair, its tail curled gracefully around its paws. Warm afternoon sunlight streams through a nearby window, casting gentle shadows across its face and highlighting the subtle variations in its cream and chocolate-point fur. The background is softly blurred, creating a shallow depth of field that draws attention to the cat's expressive features. The overall composition has a peaceful, contemplative mood with a professional photography style.")
@@ -266,7 +266,7 @@ class FluxAPI extends Tool {
       payload.raw = imageData.raw;
     }
 
-    const generateUrl = `${this.baseUrl}${imageData.endpoint || '/v1/flux-pro'}`;
+    const generateUrl = `${this.baseUrl}${imageData.endpoint || '/v1/flux-pro-1.1'}`;
     const resultUrl = `${this.baseUrl}/v1/get_result`;
 
     logger.debug('[FluxAPI] Generating image with payload:', payload);
