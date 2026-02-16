@@ -187,8 +187,9 @@ class FluxAPI extends Tool {
   }
 
   wrapInMarkdown(imageUrl) {
-    const serverDomain = process.env.DOMAIN_SERVER || 'http://localhost:3080';
-    return `![generated image](${serverDomain}${imageUrl})`;
+    // Return markdown without server domain - LibreChat handles serving files
+    // This matches DALLE3 implementation
+    return `![generated image](${imageUrl})`;
   }
 
   returnValue(value) {
