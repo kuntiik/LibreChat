@@ -446,44 +446,8 @@ class FluxAPI extends Tool {
       isAgent: this.isAgent,
     });
 
-    if (this.isAgent) {
-      try {
-        logger.debug('[FluxAPI] Processing image for agent mode');
-        // Fetch the image and convert to base64
-        const fetchOptions = {};
-        if (process.env.PROXY) {
-          fetchOptions.agent = new HttpsProxyAgent(process.env.PROXY);
-        }
-        const imageResponse = await fetch(imageUrl, fetchOptions);
-        const arrayBuffer = await imageResponse.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString('base64');
-        logger.debug('[FluxAPI] Image fetched and converted to base64, size:', base64.length);
-
-        const content = [
-          {
-            type: ContentTypes.IMAGE_URL,
-            image_url: {
-              url: `data:image/png;base64,${base64}`,
-            },
-          },
-        ];
-
-        const response = [
-          {
-            type: ContentTypes.TEXT,
-            text: displayMessage,
-          },
-        ];
-        logger.info('[FluxAPI] Successfully processed image for agent');
-        return [response, { content }];
-      } catch (error) {
-        logger.error('[FluxAPI] Error processing image for agent:', {
-          error: error.message,
-          stack: error.stack,
-        });
-        return this.returnValue(`Failed to process the image. ${error.message}`);
-      }
-    }
+    // For agents, we still need to save the file to avoid token overflow from base64
+    // The base64 approach was causing 390k+ tokens which exceeds context limits
 
     try {
       logger.debug('[FluxAPI] Saving image:', {
