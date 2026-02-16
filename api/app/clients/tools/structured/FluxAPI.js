@@ -338,7 +338,9 @@ class FluxAPI extends Tool {
     }
 
     const taskId = taskResponse.data.id;
+    const pollingUrl = taskResponse.data.polling_url || `${resultUrl}?id=${taskId}`;
     logger.info('[FluxAPI] Got task ID: ' + taskId + ' (full response: ' + JSON.stringify(taskResponse.data) + ')');
+    logger.info('[FluxAPI] Using polling URL: ' + pollingUrl);
 
     // Polling for the result
     let status = 'Pending';
@@ -352,19 +354,17 @@ class FluxAPI extends Tool {
         await new Promise((resolve) => setTimeout(resolve, 2000));
         pollCount++;
 
-        const pollUrl = `${resultUrl}?id=${taskId}`;
         logger.debug(`[FluxAPI] Polling attempt ${pollCount}:`, {
-          url: pollUrl,
+          url: pollingUrl,
           method: 'GET',
           taskId,
         });
 
-        const resultResponse = await axios.get(resultUrl, {
+        const resultResponse = await axios.get(pollingUrl, {
           headers: {
             'x-key': requestApiKey,
             Accept: 'application/json',
           },
-          params: { id: taskId },
           ...this.getAxiosConfig(),
         });
         status = resultResponse.data.status;
@@ -393,7 +393,7 @@ class FluxAPI extends Tool {
       } catch (error) {
         const details = this.getDetails(error?.response?.data || error.message);
         const errorInfo = {
-          url: `${resultUrl}?id=${taskId}`,
+          url: pollingUrl,
           method: 'GET',
           pollCount,
           taskId,
@@ -696,6 +696,9 @@ class FluxAPI extends Tool {
     }
 
     const taskId = taskResponse.data.id;
+    const pollingUrl = taskResponse.data.polling_url || `${resultUrl}?id=${taskId}`;
+    logger.info('[FluxAPI] Finetuned task ID: ' + taskId);
+    logger.info('[FluxAPI] Using polling URL: ' + pollingUrl);
 
     // Polling for the result
     let status = 'Pending';
@@ -704,12 +707,11 @@ class FluxAPI extends Tool {
       try {
         // Wait 2 seconds between polls
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        const resultResponse = await axios.get(resultUrl, {
+        const resultResponse = await axios.get(pollingUrl, {
           headers: {
             'x-key': requestApiKey,
             Accept: 'application/json',
           },
-          params: { id: taskId },
           ...this.getAxiosConfig(),
         });
         status = resultResponse.data.status;
