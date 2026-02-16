@@ -274,7 +274,7 @@ class FluxAPI extends Tool {
 
     let taskResponse;
     try {
-      logger.info('[FluxAPI] Sending POST request to Flux API:', {
+      const requestInfo = {
         url: generateUrl,
         method: 'POST',
         hasApiKey: !!requestApiKey,
@@ -288,7 +288,8 @@ class FluxAPI extends Tool {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-      });
+      };
+      logger.info('[FluxAPI] Sending POST request to Flux API: ' + JSON.stringify(requestInfo, null, 2));
 
       taskResponse = await axios.post(generateUrl, payload, {
         headers: {
@@ -310,7 +311,7 @@ class FluxAPI extends Tool {
       });
     } catch (error) {
       const details = this.getDetails(error?.response?.data || error.message);
-      logger.error('[FluxAPI] Error while submitting task:', {
+      const errorInfo = {
         url: generateUrl,
         method: 'POST',
         statusCode: error?.response?.status,
@@ -326,7 +327,8 @@ class FluxAPI extends Tool {
         errorMessage: error.message,
         errorCode: error.code,
         details,
-      });
+      };
+      logger.error('[FluxAPI] Error while submitting task: ' + JSON.stringify(errorInfo, null, 2));
 
       return this.returnValue(
         `Something went wrong when trying to generate the image. The Flux API may be unavailable:
@@ -388,7 +390,7 @@ class FluxAPI extends Tool {
         }
       } catch (error) {
         const details = this.getDetails(error?.response?.data || error.message);
-        logger.error('[FluxAPI] Error while polling for result:', {
+        const errorInfo = {
           url: `${resultUrl}?id=${taskId}`,
           method: 'GET',
           pollCount,
@@ -400,7 +402,8 @@ class FluxAPI extends Tool {
           errorMessage: error.message,
           errorCode: error.code,
           details,
-        });
+        };
+        logger.error('[FluxAPI] Error while polling for result: ' + JSON.stringify(errorInfo, null, 2));
         return this.returnValue('An error occurred while retrieving the image.');
       }
     }
@@ -570,7 +573,7 @@ class FluxAPI extends Tool {
       return JSON.stringify(finetuneDetails);
     } catch (error) {
       const details = this.getDetails(error?.response?.data || error.message);
-      logger.error('[FluxAPI] Error while getting finetunes:', {
+      const errorInfo = {
         url: finetunesUrl,
         method: 'GET',
         statusCode: error?.response?.status,
@@ -579,7 +582,8 @@ class FluxAPI extends Tool {
         errorMessage: error.message,
         errorCode: error.code,
         details,
-      });
+      };
+      logger.error('[FluxAPI] Error while getting finetunes: ' + JSON.stringify(errorInfo, null, 2));
       const errorMsg = `Failed to get finetunes: ${details}`;
       return this.isAgent ? this.returnValue([errorMsg, {}]) : new Error(errorMsg);
     }
@@ -668,7 +672,7 @@ class FluxAPI extends Tool {
       });
     } catch (error) {
       const details = this.getDetails(error?.response?.data || error.message);
-      logger.error('[FluxAPI] Error while submitting finetuned task:', {
+      const errorInfo = {
         url: generateUrl,
         method: 'POST',
         statusCode: error?.response?.status,
@@ -681,7 +685,8 @@ class FluxAPI extends Tool {
         errorMessage: error.message,
         errorCode: error.code,
         details,
-      });
+      };
+      logger.error('[FluxAPI] Error while submitting finetuned task: ' + JSON.stringify(errorInfo, null, 2));
       return this.returnValue(
         `Something went wrong when trying to generate the finetuned image. The Flux API may be unavailable:
         Error Message: ${details}`,
