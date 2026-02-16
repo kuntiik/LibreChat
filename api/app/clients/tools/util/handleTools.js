@@ -70,9 +70,19 @@ const validateTools = async (user, tools = []) => {
      */
     const validateCredentials = async (authField, toolName) => {
       const fields = authField.split('||');
+      logger.debug('[validateTools] Validating credentials for tool:', {
+        toolName,
+        authFields: fields,
+      });
+
       for (const field of fields) {
         const adminAuth = process.env[field];
         if (adminAuth && adminAuth.length > 0) {
+          logger.debug('[validateTools] Admin auth found for:', {
+            toolName,
+            field,
+            hasValue: true,
+          });
           return;
         }
 
@@ -80,15 +90,29 @@ const validateTools = async (user, tools = []) => {
         try {
           userAuth = await getUserPluginAuthValue(user, field);
         } catch (err) {
+          logger.debug('[validateTools] Error getting user auth:', {
+            toolName,
+            field,
+            error: err.message,
+          });
           if (field === fields[fields.length - 1] && !userAuth) {
             throw err;
           }
         }
         if (userAuth && userAuth.length > 0) {
+          logger.debug('[validateTools] User auth found for:', {
+            toolName,
+            field,
+            hasValue: true,
+          });
           return;
         }
       }
 
+      logger.warn('[validateTools] No valid credentials found, removing tool:', {
+        toolName,
+        attemptedFields: fields,
+      });
       validToolsSet.delete(toolName);
     };
 
@@ -124,8 +148,24 @@ const validateTools = async (user, tools = []) => {
  */
 const loadToolWithAuth = (userId, authFields, ToolConstructor, options = {}) => {
   return async function () {
+    logger.debug('[loadToolWithAuth] Loading tool:', {
+      toolName: ToolConstructor.name,
+      userId,
+      authFields,
+      hasOptions: Object.keys(options).length > 0,
+    });
     const authValues = await loadAuthValues({ userId, authFields });
-    return new ToolConstructor({ ...options, ...authValues, userId });
+    logger.debug('[loadToolWithAuth] Auth values loaded:', {
+      toolName: ToolConstructor.name,
+      authFieldsReceived: Object.keys(authValues),
+      hasAuthValues: Object.values(authValues).some(v => v != null && v !== ''),
+    });
+    const tool = new ToolConstructor({ ...options, ...authValues, userId });
+    logger.info('[loadToolWithAuth] Tool initialized:', {
+      toolName: ToolConstructor.name,
+      toolInstanceName: tool.name,
+    });
+    return tool;
   };
 };
 
