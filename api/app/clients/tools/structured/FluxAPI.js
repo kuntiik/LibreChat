@@ -346,13 +346,22 @@ class FluxAPI extends Tool {
     let status = 'Pending';
     let resultData = null;
     let pollCount = 0;
+    const maxPolls = 60; // Maximum 60 polls (2 minutes)
     logger.info('[FluxAPI] Starting polling for task result');
 
-    while (status !== 'Ready' && status !== 'Error') {
+    while (status !== 'Ready' && status !== 'Error' && status !== 'Request Moderated') {
       try {
         // Wait 2 seconds between polls
         await new Promise((resolve) => setTimeout(resolve, 2000));
         pollCount++;
+
+        // Check if we've exceeded max polls
+        if (pollCount > maxPolls) {
+          logger.error('[FluxAPI] Max polling attempts reached:', { pollCount, taskId });
+          return this.returnValue(
+            `Image generation timed out after ${maxPolls} attempts. The task may still be processing.`,
+          );
+        }
 
         logger.debug(`[FluxAPI] Polling attempt ${pollCount}:`, {
           url: pollingUrl,
@@ -389,6 +398,17 @@ class FluxAPI extends Tool {
             responseData: resultResponse.data,
           });
           return this.returnValue('An error occurred during image generation.');
+        } else if (status === 'Request Moderated') {
+          const moderationReasons =
+            resultResponse.data.details?.['Moderation Reasons']?.join(', ') || 'Unknown';
+          logger.warn('[FluxAPI] Request was moderated:', {
+            taskId,
+            reasons: moderationReasons,
+            details: resultResponse.data.details,
+          });
+          return this.returnValue(
+            `The image generation request was blocked by content moderation filters. Reason: ${moderationReasons}. Please try a different prompt.`,
+          );
         }
       } catch (error) {
         const details = this.getDetails(error?.response?.data || error.message);
@@ -703,10 +723,26 @@ class FluxAPI extends Tool {
     // Polling for the result
     let status = 'Pending';
     let resultData = null;
-    while (status !== 'Ready' && status !== 'Error') {
+    let pollCount = 0;
+    const maxPolls = 60; // Maximum 60 polls (2 minutes)
+
+    while (status !== 'Ready' && status !== 'Error' && status !== 'Request Moderated') {
       try {
         // Wait 2 seconds between polls
         await new Promise((resolve) => setTimeout(resolve, 2000));
+        pollCount++;
+
+        // Check if we've exceeded max polls
+        if (pollCount > maxPolls) {
+          logger.error('[FluxAPI] Max polling attempts reached for finetuned task:', {
+            pollCount,
+            taskId,
+          });
+          return this.returnValue(
+            `Finetuned image generation timed out after ${maxPolls} attempts. The task may still be processing.`,
+          );
+        }
+
         const resultResponse = await axios.get(pollingUrl, {
           headers: {
             'x-key': requestApiKey,
@@ -716,12 +752,27 @@ class FluxAPI extends Tool {
         });
         status = resultResponse.data.status;
 
+        logger.debug(`[FluxAPI] Finetuned poll ${pollCount}:`, {
+          status,
+          taskId,
+        });
+
         if (status === 'Ready') {
           resultData = resultResponse.data.result;
           break;
         } else if (status === 'Error') {
           logger.error('[FluxAPI] Error in finetuned task:', resultResponse.data);
           return this.returnValue('An error occurred during finetuned image generation.');
+        } else if (status === 'Request Moderated') {
+          const moderationReasons =
+            resultResponse.data.details?.['Moderation Reasons']?.join(', ') || 'Unknown';
+          logger.warn('[FluxAPI] Finetuned request was moderated:', {
+            taskId,
+            reasons: moderationReasons,
+          });
+          return this.returnValue(
+            `The finetuned image generation request was blocked by content moderation. Reason: ${moderationReasons}. Please try a different prompt.`,
+          );
         }
       } catch (error) {
         const details = this.getDetails(error?.response?.data || error.message);
