@@ -300,7 +300,7 @@ class FluxAPI extends Tool {
         ...this.getAxiosConfig(),
       });
 
-      logger.info('[FluxAPI] Task submission response:', {
+      const responseInfo = {
         status: taskResponse.status,
         statusText: taskResponse.statusText,
         data: taskResponse.data,
@@ -308,7 +308,8 @@ class FluxAPI extends Tool {
           'content-type': taskResponse.headers['content-type'],
           'x-request-id': taskResponse.headers['x-request-id'],
         },
-      });
+      };
+      logger.info('[FluxAPI] Task submission response: ' + JSON.stringify(responseInfo, null, 2));
     } catch (error) {
       const details = this.getDetails(error?.response?.data || error.message);
       const errorInfo = {
@@ -337,7 +338,7 @@ class FluxAPI extends Tool {
     }
 
     const taskId = taskResponse.data.id;
-    logger.debug('[FluxAPI] Got task ID:', taskId);
+    logger.info('[FluxAPI] Got task ID: ' + taskId + ' (full response: ' + JSON.stringify(taskResponse.data) + ')');
 
     // Polling for the result
     let status = 'Pending';
@@ -368,13 +369,14 @@ class FluxAPI extends Tool {
         });
         status = resultResponse.data.status;
 
-        logger.debug(`[FluxAPI] Poll ${pollCount} response:`, {
+        const pollResponseInfo = {
           status: resultResponse.status,
           statusText: resultResponse.statusText,
           taskStatus: status,
           taskId,
           data: resultResponse.data,
-        });
+        };
+        logger.info(`[FluxAPI] Poll ${pollCount} response: ` + JSON.stringify(pollResponseInfo, null, 2));
 
         if (status === 'Ready') {
           resultData = resultResponse.data.result;
