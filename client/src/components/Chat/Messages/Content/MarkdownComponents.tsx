@@ -88,6 +88,9 @@ type TAnchorProps = {
   children: React.ReactNode;
 };
 
+import { TOOL_IMAGE_LINK_TEXT } from 'librechat-data-provider';
+export { TOOL_IMAGE_LINK_TEXT };
+
 export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
   const user = useRecoilValue(store.user);
   const { showToast } = useToastContext();
@@ -112,6 +115,53 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
 
   const { refetch: downloadFile } = useFileDownload(user?.id ?? '', file_id);
   const props: { target?: string; onClick?: React.MouseEventHandler } = { target: '_blank' };
+
+  // compute final link href for both download logic and image detection
+  const computeHref = () => {
+    if (file_id && filename) {
+      const domainServerBaseUrl = `${apiBaseUrl()}/api`;
+      return filepath?.startsWith('files/')
+        ? `${domainServerBaseUrl}/${filepath}`
+        : `${domainServerBaseUrl}/files/${filepath}`;
+    }
+    return href;
+  };
+  const finalHref = computeHref();
+
+  // helper to flatten any nested React children into plaintext
+  const getText = (node: React.ReactNode): string => {
+    if (node == null || typeof node === 'boolean') return '';
+    if (typeof node === 'string') return node;
+    if (typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(getText).join('');
+    if (React.isValidElement(node)) return getText(node.props.children);
+    return '';
+  };
+
+  const childText = getText(children).trim().toLowerCase();
+
+  // determine if the href refers to an image hosted by our backend
+  const baseURL = apiBaseUrl();
+
+  // if there's any reference to our base url we want to render the link as
+  // an image.  this covers cases where the server returns a generated image
+  // link that might not include an extension or begin with `/images`/`/files`
+  // (such as when we've reverted state and are only showing the raw URL). we
+  // also still support the legacy pattern of matching common image extensions
+  // so external image URLs continue to render correctly.
+  const localImageRegex = new RegExp(
+    `(?:${baseURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|/images/|/files/).*\\.(png|jpe?g|gif|bmp|webp|svg)(\\?.*)?$`,
+    'i',
+  );
+
+  const hasBaseUrl = finalHref.toLowerCase().includes(baseURL.toLowerCase());
+  const isLocalImage = hasBaseUrl || localImageRegex.test(finalHref);
+
+  // special case: tool-generated image link (same text used by server)
+  // always render as image, regardless of extension or host
+  if (childText === TOOL_IMAGE_LINK_TEXT || isLocalImage) {
+    return <img src={finalHref} alt={getText(children)} />;
+  }
 
   if (!file_id || !filename) {
     return (
