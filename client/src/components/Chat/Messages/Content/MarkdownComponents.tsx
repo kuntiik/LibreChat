@@ -88,8 +88,6 @@ type TAnchorProps = {
   children: React.ReactNode;
 };
 
-import { TOOL_IMAGE_LINK_TEXT } from 'librechat-data-provider';
-export { TOOL_IMAGE_LINK_TEXT };
 
 export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
   const user = useRecoilValue(store.user);
@@ -138,30 +136,27 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
     return '';
   };
 
-  const childText = getText(children).trim().toLowerCase();
-
-  // determine if the href refers to an image hosted by our backend
+  // determine if the href refers to an image we should render inline
   const baseURL = apiBaseUrl();
 
-  // if there's any reference to our base url we want to render the link as
-  // an image.  this covers cases where the server returns a generated image
-  // link that might not include an extension or begin with `/images`/`/files`
-  // (such as when we've reverted state and are only showing the raw URL). we
-  // also still support the legacy pattern of matching common image extensions
-  // so external image URLs continue to render correctly.
+  // match image extensions optionally hosted by our API or using our
+  // familiar `/images` and `/files` routes. this regex is the single source
+  // of truth for deciding whether an anchor should become an <img>.
   const localImageRegex = new RegExp(
     `(?:${baseURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|/images/|/files/).*\\.(png|jpe?g|gif|bmp|webp|svg)(\\?.*)?$`,
     'i',
   );
 
-  const hasBaseUrl = finalHref.toLowerCase().includes(baseURL.toLowerCase());
-  const isLocalImage = hasBaseUrl || localImageRegex.test(finalHref);
+  const isLocalImage = localImageRegex.test(finalHref);
 
-  // special case: tool-generated image link (same text used by server)
-  // always render as image, regardless of extension or host
-  if (childText === TOOL_IMAGE_LINK_TEXT || isLocalImage) {
+  // if the computed href points at an image, render an <img> immediately
+  if (isLocalImage) {
     return <img src={finalHref} alt={getText(children)} />;
   }
+
+  // legacy special case where the server returns the raw URL text and that
+  // text exactly matches the boolean evaluation above was a mistake; it
+  // never worked reliably and isn't needed anymore, so drop it.
 
   if (!file_id || !filename) {
     return (

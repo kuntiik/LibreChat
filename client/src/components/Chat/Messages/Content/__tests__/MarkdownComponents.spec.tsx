@@ -33,12 +33,21 @@ describe('MarkdownComponents anchor rendering', () => {
     expect(link).toHaveAttribute('href', 'https://example.com/foo');
   });
 
-  it('renders a link containing the base url as an image', () => {
-    const testUrl = `${base}/api/files/foobar`;
+  it('renders a link pointing to our API with an image extension as an <img>', () => {
+    const testUrl = `${base}/api/files/foobar.png`;
     renderAnchor(testUrl, testUrl);
     const img = screen.getByRole('img') as HTMLImageElement;
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', testUrl);
+  });
+
+  it('does not convert a base-url link lacking an image extension', () => {
+    const nonImg = `${base}/api/files/foobar`;
+    renderAnchor(nonImg, 'click me');
+    const link = screen.getByText('click me') as HTMLAnchorElement;
+    expect(link).toBeInTheDocument();
+    expect(link.tagName).toBe('A');
+    expect(link).toHaveAttribute('href', nonImg);
   });
 
   it('still respects image extensions for non-base links', () => {
