@@ -119,6 +119,23 @@ describe('ToolService - Capability Checking', () => {
     });
   });
 
+  describe('image assistant message formatting', () => {
+    // import helper inside describe so jest hoisting works
+    const { buildImageAssistantMessage } = require('~/server/services/ToolService');
+
+    it('embeds markdown reference when filepath is provided', () => {
+      const text = buildImageAssistantMessage('flux', { filepath: '/images/foo.png' });
+      expect(text).toContain('![generated image](/images/foo.png)');
+    });
+
+    it('does not include markdown if no filepath present', () => {
+      const text = buildImageAssistantMessage('flux', {});
+      expect(text).not.toContain('![generated image](');
+      // still contains the base guidance
+      expect(text).toMatch(/displayed an image/);
+    });
+  });
+
   describe('deferredToolsEnabled integration', () => {
     it('should correctly determine deferredToolsEnabled from capabilities set', () => {
       const createCheckCapability = (enabledCapabilities) => {

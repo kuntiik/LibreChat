@@ -96,6 +96,36 @@ const processVisionRequest = async (client, currentAction) => {
   };
 };
 
+
+/**
+ * Build the human-readable assistant output for an image generation tool.
+ *
+ * The returned string will include the standard guidance text and, when a
+ * valid `filepath` is present on the `imageOutput`, it will embed a markdown
+ * image reference.  Clients rendering assistant messages parse markdown and
+ * will display the picture automatically.  This helper exists so we can unit
+ * test the formatting logic independently of the full tool processing flow.
+ *
+ * @param {string} toolName - name of the tool (e.g. 'flux', 'dalle').
+ * @param {Object} imageOutput - the raw output from the image tool, typically
+ *   the object returned by `processFileURL` (contains `filepath`, `file_id`,
+ *   etc.).
+ * @returns {string} formatted assistant message text
+ */
+function buildImageAssistantMessage(toolName, imageOutput) {
+  let baseMessage = `${toolName} displayed an image. All generated images are already plainly visible, so don't repeat the descriptions in detail.`;
+
+  const filePath = imageOutput && imageOutput.filepath ? imageOutput.filepath : null;
+  if (filePath) {
+    baseMessage += `\n\n![generated image](${filePath})\n\n`;
+  }
+
+  baseMessage +=
+    'Do not list download links as they are available in the UI already. The user may download the images by clicking on them, but do not mention anything about downloading to the user.';
+
+  return baseMessage;
+}
+
 /**
  * Processes return required actions from run.
  * @param {OpenAIClient | StreamRunManager} client - OpenAI (legacy) or StreamRunManager Client.
@@ -187,7 +217,8 @@ async function processRequiredActions(client, requiredActions) {
 
       if (imageGenTools.has(currentAction.tool)) {
         const imageOutput = output;
-        toolCall.function.output = `${currentAction.tool} displayed an image. All generated images are already plainly visible, so don't repeat the descriptions in detail. Do not list download links as they are available in the UI already. The user may download the images by clicking on them, but do not mention anything about downloading to the user.`;
+        // build assistant message text using helper (makes testing easier)
+        toolCall.function.output = buildImageAssistantMessage(currentAction.tool, imageOutput);
 
         // Streams the "Finished" state of the tool call in the UI
         client.addContentData({
@@ -1397,4 +1428,5 @@ module.exports = {
   loadAgentTools,
   loadToolsForExecution,
   processRequiredActions,
+  buildImageAssistantMessage,
 };
