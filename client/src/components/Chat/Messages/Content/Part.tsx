@@ -120,7 +120,8 @@ const Part = memo(
         isToolCall &&
         (toolCall.name === 'image_gen_oai' ||
           toolCall.name === 'image_edit_oai' ||
-          toolCall.name === 'gemini_image_gen')
+          toolCall.name === 'gemini_image_gen' ||
+          imageGenTools.has(toolCall.name))
       ) {
         return (
           <OpenAIImageGen

@@ -78,6 +78,49 @@ export default function OpenAIImageGen({
   let origWidth = width ?? imageWidth;
   let origHeight = height ?? imageHeight;
 
+  // Legacy image tool-call output can include metadata in a tuple:
+  // [instructionText, { filepath, filename, width, height, ... }]
+  // Use it as a fallback when attachments aren't present.
+  let outputImageMetadata:
+    | { filepath?: string | null; filename?: string; width?: number; height?: number }
+    | null = null;
+  try {
+    if (typeof output === 'string') {
+      const parsedOutput = JSON.parse(output);
+      if (
+        Array.isArray(parsedOutput) &&
+        parsedOutput[1] &&
+        typeof parsedOutput[1] === 'object' &&
+        !Array.isArray(parsedOutput[1])
+      ) {
+        outputImageMetadata = parsedOutput[1] as {
+          filepath?: string | null;
+          filename?: string;
+          width?: number;
+          height?: number;
+        };
+      } else if (parsedOutput && typeof parsedOutput === 'object' && !Array.isArray(parsedOutput)) {
+        outputImageMetadata = parsedOutput as {
+          filepath?: string | null;
+          filename?: string;
+          width?: number;
+          height?: number;
+        };
+      }
+    }
+  } catch {
+    outputImageMetadata = null;
+  }
+
+  const resolvedFilepath = filepath ?? outputImageMetadata?.filepath ?? null;
+  const resolvedFilename = filename || outputImageMetadata?.filename || '';
+  if (origWidth == null && outputImageMetadata?.width != null) {
+    origWidth = outputImageMetadata.width;
+  }
+  if (origHeight == null && outputImageMetadata?.height != null) {
+    origHeight = outputImageMetadata.height;
+  }
+
   if (origWidth === undefined || origHeight === undefined) {
     origWidth = 1024;
     origHeight = 1024;
@@ -189,8 +232,8 @@ export default function OpenAIImageGen({
             />
           )}
           <Image
-            altText={filename}
-            imagePath={filepath ?? ''}
+            altText={resolvedFilename}
+            imagePath={resolvedFilepath ?? ''}
             width={Number(dimensions.width?.split('px')[0])}
             height={Number(dimensions.height?.split('px')[0])}
             placeholderDimensions={{ width: dimensions.width, height: dimensions.height }}
