@@ -1,15 +1,12 @@
 import React, { memo, useMemo, useRef, useEffect } from 'react';
 import { useRecoilValue } from 'recoil';
-import { useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions, apiBaseUrl } from 'librechat-data-provider';
 import MermaidErrorBoundary from '~/components/Messages/Content/MermaidErrorBoundary';
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import Mermaid from '~/components/Messages/Content/Mermaid';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
-import { useFileDownload } from '~/data-provider';
 import { useCodeBlockContext } from '~/Providers';
 import { handleDoubleClick } from '~/utils';
-import { useLocalize } from '~/hooks';
 import store from '~/store';
 
 type TCodeProps = {
@@ -91,8 +88,6 @@ type TAnchorProps = {
 
 export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
   const user = useRecoilValue(store.user);
-  const { showToast } = useToastContext();
-  const localize = useLocalize();
 
   const {
     file_id = '',
@@ -111,10 +106,7 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
     return { file_id: '', filename: '', filepath: '' };
   }, [user?.id, href]);
 
-  const { refetch: downloadFile } = useFileDownload(user?.id ?? '', file_id);
-  const props: { target?: string; onClick?: React.MouseEventHandler } = { target: '_blank' };
-
-  // compute final link href for both download logic and image detection
+  // compute final link href
   const computeHref = () => {
     if (file_id && filename) {
       const domainServerBaseUrl = `${apiBaseUrl()}/api`;
@@ -126,94 +118,8 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
   };
   const finalHref = computeHref();
 
-  // helper to flatten any nested React children into plaintext
-  const getText = (node: React.ReactNode): string => {
-    if (node == null || typeof node === 'boolean') return '';
-    if (typeof node === 'string') return node;
-    if (typeof node === 'number') return String(node);
-    if (Array.isArray(node)) return node.map(getText).join('');
-    if (React.isValidElement(node)) return getText(node.props.children);
-    return '';
-  };
-
-  // Determine if href is an image from this server only.
-  const baseURL = apiBaseUrl();
-  const serverOrigin = (() => {
-    try {
-      return new URL(baseURL, window.location.origin).origin;
-    } catch {
-      return '';
-    }
-  })();
-  const imageExtRegex = /\.(png|jpe?g|gif|bmp|webp|svg)(\?.*)?$/i;
-  const isLocalImage = (() => {
-    try {
-      const resolvedUrl = new URL(finalHref, window.location.origin);
-      return (
-        resolvedUrl.origin === serverOrigin &&
-        resolvedUrl.pathname.startsWith('/images/') &&
-        imageExtRegex.test(resolvedUrl.pathname + resolvedUrl.search)
-      );
-    } catch {
-      return false;
-    }
-  })();
-
-  // if the computed href points at an image, render an <img> immediately
-  if (isLocalImage) {
-    return <img src={finalHref} alt={getText(children)} />;
-  }
-
-  // legacy special case where the server returns the raw URL text and that
-  // text exactly matches the boolean evaluation above was a mistake; it
-  // never worked reliably and isn't needed anymore, so drop it.
-
-  if (!file_id || !filename) {
-    return (
-      <a href={href} {...props}>
-        {children}
-      </a>
-    );
-  }
-
-  const handleDownload = async (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    try {
-      const stream = await downloadFile();
-      if (stream.data == null || stream.data === '') {
-        console.error('Error downloading file: No data found');
-        showToast({
-          status: 'error',
-          message: localize('com_ui_download_error'),
-        });
-        return;
-      }
-      const link = document.createElement('a');
-      link.href = stream.data;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(stream.data);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-    }
-  };
-
-  props.onClick = handleDownload;
-  props.target = '_blank';
-
-  const domainServerBaseUrl = `${apiBaseUrl()}/api`;
-
   return (
-    <a
-      href={
-        filepath?.startsWith('files/')
-          ? `${domainServerBaseUrl}/${filepath}`
-          : `${domainServerBaseUrl}/files/${filepath}`
-      }
-      {...props}
-    >
+    <a href={finalHref} target="_blank" rel="noreferrer">
       {children}
     </a>
   );
