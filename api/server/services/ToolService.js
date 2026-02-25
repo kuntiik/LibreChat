@@ -127,6 +127,29 @@ function buildImageAssistantMessage(toolName, imageOutput) {
 }
 
 /**
+ * Normalize image tool output to metadata object.
+ * Some tools (especially in agent mode) can return a tuple: [message, metadata].
+ *
+ * @param {unknown} output
+ * @returns {Record<string, unknown>}
+ */
+function normalizeImageOutput(output) {
+  if (Array.isArray(output)) {
+    const metadata = output[1];
+    if (metadata && typeof metadata === 'object') {
+      return metadata;
+    }
+    return {};
+  }
+
+  if (output && typeof output === 'object') {
+    return output;
+  }
+
+  return {};
+}
+
+/**
  * Processes return required actions from run.
  * @param {OpenAIClient | StreamRunManager} client - OpenAI (legacy) or StreamRunManager Client.
  * @param {RequiredAction[]} requiredActions - The required actions to submit outputs for.
@@ -216,7 +239,7 @@ async function processRequiredActions(client, requiredActions) {
       const toolCallIndex = client.mappedOrder.get(toolCall.id);
 
       if (imageGenTools.has(currentAction.tool)) {
-        const imageOutput = output;
+        const imageOutput = normalizeImageOutput(output);
         // build assistant message text using helper (makes testing easier)
         toolCall.function.output = buildImageAssistantMessage(currentAction.tool, imageOutput);
 
@@ -1429,4 +1452,5 @@ module.exports = {
   loadToolsForExecution,
   processRequiredActions,
   buildImageAssistantMessage,
+  normalizeImageOutput,
 };

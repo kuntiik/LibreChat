@@ -121,7 +121,7 @@ describe('ToolService - Capability Checking', () => {
 
   describe('image assistant message formatting', () => {
     // import helper inside describe so jest hoisting works
-    const { buildImageAssistantMessage } = require('~/server/services/ToolService');
+    const { buildImageAssistantMessage, normalizeImageOutput } = require('~/server/services/ToolService');
 
     it('embeds markdown reference when filepath is provided', () => {
       const text = buildImageAssistantMessage('flux', { filepath: '/images/foo.png' });
@@ -133,6 +133,11 @@ describe('ToolService - Capability Checking', () => {
       expect(text).not.toContain('![generated image](');
       // still contains the base guidance
       expect(text).toMatch(/displayed an image/);
+    });
+
+    it('extracts metadata from tuple output', () => {
+      const metadata = normalizeImageOutput(['Your image is ready.', { filepath: '/images/foo.png' }]);
+      expect(metadata).toEqual({ filepath: '/images/foo.png' });
     });
   });
 

@@ -136,18 +136,28 @@ export const a: React.ElementType = memo(({ href, children }: TAnchorProps) => {
     return '';
   };
 
-  // determine if the href refers to an image we should render inline
+  // Determine if href is an image from this server only.
   const baseURL = apiBaseUrl();
-
-  // match image extensions optionally hosted by our API or using our
-  // familiar `/images` and `/files` routes. this regex is the single source
-  // of truth for deciding whether an anchor should become an <img>.
-  const localImageRegex = new RegExp(
-    `(?:${baseURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|/images/|/files/).*\\.(png|jpe?g|gif|bmp|webp|svg)(\\?.*)?$`,
-    'i',
-  );
-
-  const isLocalImage = localImageRegex.test(finalHref);
+  const serverOrigin = (() => {
+    try {
+      return new URL(baseURL, window.location.origin).origin;
+    } catch {
+      return '';
+    }
+  })();
+  const imageExtRegex = /\.(png|jpe?g|gif|bmp|webp|svg)(\?.*)?$/i;
+  const isLocalImage = (() => {
+    try {
+      const resolvedUrl = new URL(finalHref, window.location.origin);
+      return (
+        resolvedUrl.origin === serverOrigin &&
+        resolvedUrl.pathname.startsWith('/images/') &&
+        imageExtRegex.test(resolvedUrl.pathname + resolvedUrl.search)
+      );
+    } catch {
+      return false;
+    }
+  })();
 
   // if the computed href points at an image, render an <img> immediately
   if (isLocalImage) {
@@ -226,21 +236,35 @@ type TImageProps = {
 };
 
 export const img: React.ElementType = memo(({ src, alt, title, className, style }: TImageProps) => {
-  // Get the base URL from the API endpoints
   const baseURL = apiBaseUrl();
 
-  // If src starts with /images/, prepend the base URL
-  const fixedSrc = useMemo(() => {
+  // Resolve relative image paths against our API base URL.
+  const resolvedSrc = useMemo(() => {
     if (!src) return src;
-
-    // If it's already an absolute URL or doesn't start with /images/, return as is
-    if (src.startsWith('http') || src.startsWith('data:') || !src.startsWith('/images/')) {
-      return src;
-    }
-
-    // Prepend base URL to the image path
-    return `${baseURL}${src}`;
+    if (src.startsWith('data:')) return src;
+    if (src.startsWith('/')) return `${baseURL}${src}`;
+    return src;
   }, [src, baseURL]);
 
-  return <img src={fixedSrc} alt={alt} title={title} className={className} style={style} />;
+  const shouldRenderImage = useMemo(() => {
+    if (!resolvedSrc) return false;
+    if (resolvedSrc.startsWith('data:')) return false;
+    try {
+      const serverOrigin = new URL(baseURL, window.location.origin).origin;
+      const imageUrl = new URL(resolvedSrc, window.location.origin);
+      return imageUrl.origin === serverOrigin && imageUrl.pathname.startsWith('/images/');
+    } catch {
+      return false;
+    }
+  }, [resolvedSrc, baseURL]);
+
+  if (!shouldRenderImage) {
+    return (
+      <a href={resolvedSrc ?? src} target="_blank" rel="noreferrer">
+        {alt || title || src}
+      </a>
+    );
+  }
+
+  return <img src={resolvedSrc} alt={alt} title={title} className={className} style={style} />;
 });
