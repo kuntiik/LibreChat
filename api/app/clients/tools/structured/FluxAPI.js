@@ -44,7 +44,7 @@ const fluxApiJsonSchema = {
     safety_tolerance: {
       type: 'number',
       description:
-        'Tolerance level for input and output moderation. Between 0 and 6, 0 being most strict, 6 being least strict.',
+        'Tolerance level for input and output moderation. Between 0 and 5, 0 being most strict, 5 being least strict.',
     },
     endpoint: {
       type: 'string',
@@ -243,7 +243,7 @@ class FluxAPI extends Tool {
     let payload = {
       prompt: imageData.prompt,
       prompt_upsampling: imageData.prompt_upsampling || false,
-      safety_tolerance: imageData.safety_tolerance || 6,
+      safety_tolerance: imageData.safety_tolerance ?? 5,
       output_format: imageData.output_format || 'png',
     };
 
@@ -597,7 +597,7 @@ class FluxAPI extends Tool {
     let payload = {
       prompt: imageData.prompt,
       prompt_upsampling: imageData.prompt_upsampling || false,
-      safety_tolerance: imageData.safety_tolerance || 6,
+      safety_tolerance: imageData.safety_tolerance ?? 5,
       output_format: imageData.output_format || 'png',
       finetune_id: imageData.finetune_id,
       finetune_strength: imageData.finetune_strength || 1.0,
