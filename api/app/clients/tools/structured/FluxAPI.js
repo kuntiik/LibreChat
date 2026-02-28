@@ -11,9 +11,8 @@ const fluxApiJsonSchema = {
   properties: {
     action: {
       type: 'string',
-      enum: ['generate', 'list_finetunes', 'generate_finetuned'],
-      description:
-        'Action to perform: "generate" for image generation, "generate_finetuned" for finetuned model generation, "list_finetunes" to get available custom models',
+      enum: ['generate'],
+      description: 'Action to perform: "generate" for image generation.',
     },
     prompt: {
       type: 'string',
@@ -136,12 +135,12 @@ class FluxAPI extends Tool {
 
     this.name = 'flux';
     this.description =
-      'Use Flux to generate images from text descriptions. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls. Uses flux-pro-1.1 by default for best quality.';
+      'Use Flux to generate images from text descriptions. Each generate call creates one image. For multiple images, make multiple consecutive calls. Uses flux-2-pro by default for best quality.';
 
     this.description_for_model = `// Transform any image description into a detailed, high-quality prompt. Never submit a prompt under 3 sentences. Follow these core rules:
     // 1. ALWAYS enhance basic prompts into 5-10 detailed sentences (e.g., "a cat" becomes: "A close-up photo of a sleek Siamese cat with piercing blue eyes. The cat sits elegantly on a vintage leather armchair, its tail curled gracefully around its paws. Warm afternoon sunlight streams through a nearby window, casting gentle shadows across its face and highlighting the subtle variations in its cream and chocolate-point fur. The background is softly blurred, creating a shallow depth of field that draws attention to the cat's expressive features. The overall composition has a peaceful, contemplative mood with a professional photography style.")
     // 2. Each prompt MUST be 3-6 descriptive sentences minimum, focusing on visual elements: lighting, composition, mood, and style
-    // Use action: 'list_finetunes' to see available custom models. When using finetunes, use endpoint: '/v1/flux-pro-finetuned' (default) or '/v1/flux-pro-1.1-ultra-finetuned' for higher quality and aspect ratio.`;
+    // Available endpoints: '/v1/flux-2-pro' (default, best quality), '/v1/flux-2-max' (highest quality), '/v1/flux-2-flex' (flexible), '/v1/flux-2-klein' (fast/efficient). Always use action: 'generate' with one of these endpoints.`;
 
     // Add base URL from environment variable with fallback
     this.baseUrl = process.env.FLUX_API_BASE_URL || 'https://api.us1.bfl.ai';
@@ -265,7 +264,7 @@ class FluxAPI extends Tool {
       payload.raw = imageData.raw;
     }
 
-    const generateUrl = `${this.baseUrl}${imageData.endpoint || '/v1/flux-pro-1.1'}`;
+    const generateUrl = `${this.baseUrl}${imageData.endpoint || '/v1/flux-2-pro'}`;
     const resultUrl = `${this.baseUrl}/v1/get_result`;
 
     logger.debug('[FluxAPI] Generating image with payload:', payload);
