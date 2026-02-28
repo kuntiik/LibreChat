@@ -50,12 +50,10 @@ const fluxApiJsonSchema = {
     endpoint: {
       type: 'string',
       enum: [
-        '/v1/flux-pro-1.1',
-        '/v1/flux-pro',
-        '/v1/flux-dev',
-        '/v1/flux-pro-1.1-ultra',
-        '/v1/flux-pro-finetuned',
-        '/v1/flux-pro-1.1-ultra-finetuned',
+        '/v1/flux-2-pro',
+        '/v1/flux-2-max',
+        '/v1/flux-2-flex',
+        '/v1/flux-2-klein',
       ],
       description: 'Endpoint to use for image generation.',
     },
