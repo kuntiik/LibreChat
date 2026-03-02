@@ -790,6 +790,7 @@ async function loadToolDefinitionsWrapper({ req, res, agent, streamId = null, to
   if (imageFiles.length > 0) {
     const hasOaiImageGen = filteredTools.includes('image_gen_oai');
     const hasGeminiImageGen = filteredTools.includes('gemini_image_gen');
+    const hasFlux = filteredTools.includes('flux');
 
     if (hasOaiImageGen) {
       const toolContext = buildImageToolContext({
@@ -810,6 +811,17 @@ async function loadToolDefinitionsWrapper({ req, res, agent, streamId = null, to
       });
       if (toolContext) {
         toolContextMap.gemini_image_gen = toolContext;
+      }
+    }
+
+    if (hasFlux) {
+      const toolContext = buildImageToolContext({
+        imageFiles,
+        toolName: 'flux',
+        contextDescription: 'Flux reference images',
+      });
+      if (toolContext) {
+        toolContextMap.flux = toolContext;
       }
     }
   }

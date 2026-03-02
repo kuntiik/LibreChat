@@ -275,11 +275,15 @@ const loadTools = async ({
     toolConstructors.dalle = DALLE3;
   }
 
+  /** @type {MongoFile[]} */
+  const imageFiles = options.tool_resources?.[EToolResources.image_edit]?.files ?? [];
+
   /** @type {ImageGenOptions} */
   const imageGenOptions = {
     isAgent: !!agent,
     req: options.req,
     fileStrategy,
+    imageFiles,
     processFileURL: options.processFileURL,
     returnMetadata: options.returnMetadata,
     uploadImageBuffer: options.uploadImageBuffer,
@@ -416,6 +420,17 @@ const loadTools = async ({
     }
 
     if (toolConstructors[tool]) {
+      if (tool === 'flux' && imageFiles.length > 0) {
+        const toolContext = buildImageToolContext({
+          imageFiles,
+          toolName: 'flux',
+          contextDescription: 'Flux reference images',
+        });
+        if (toolContext) {
+          toolContextMap.flux = toolContext;
+        }
+      }
+
       const options = toolOptions[tool] || {};
       const toolInstance = loadToolWithAuth(
         user,

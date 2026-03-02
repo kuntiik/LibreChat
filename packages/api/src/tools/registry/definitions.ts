@@ -165,6 +165,19 @@ export const fluxApiSchema: ExtendedJsonSchema = {
       type: 'string',
       description: 'Aspect ratio for ultra models (e.g., "16:9")',
     },
+    image_ids: {
+      type: 'array',
+      items: {
+        type: 'string',
+      },
+      description:
+        'Optional image IDs from uploaded/generated images to use as reference. Flux currently uses the first image ID as image_prompt.',
+    },
+    image_prompt_strength: {
+      type: 'number',
+      description:
+        'Optional strength for reference image conditioning. Supported on /v1/flux-pro-1.1-ultra only.',
+    },
   },
   required: [],
 };
@@ -495,7 +508,7 @@ export const toolDefinitions: Record<string, ToolRegistryDefinition> = {
   flux: {
     name: 'flux',
     description:
-      'Use Flux to generate images from text descriptions. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls.',
+      'Use Flux to generate images from text descriptions, with optional reference image support via image_ids. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls.',
     schema: fluxApiSchema,
     toolType: 'builtin',
   },

@@ -921,6 +921,7 @@
  * @typedef {Object} ImageGenOptions
  * @property {ServerRequest} req - The request object.
  * @property {boolean} isAgent - Whether the request is from an agent.
+ * @property {MongoFile[]} [imageFiles] - Optional image files available for reference/editing.
  * @property {processFileURL} processFileURL - The function to process a file URL.
  * @property {boolean} returnMetadata - Whether to return metadata.
  * @property {uploadImageBuffer} uploadImageBuffer - The function to upload an image buffer.

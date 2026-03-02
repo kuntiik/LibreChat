@@ -1,10 +1,11 @@
 const axios = require('axios');
-const fetch = require('node-fetch');
 const { v4: uuidv4 } = require('uuid');
 const { Tool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const { FileContext, ContentTypes } = require('librechat-data-provider');
+const { FileContext } = require('librechat-data-provider');
+const { getStrategyFunctions } = require('~/server/services/Files/strategies');
+const { getFiles } = require('~/models');
 
 const fluxApiJsonSchema = {
   type: 'object',
@@ -80,6 +81,19 @@ const fluxApiJsonSchema = {
       type: 'string',
       description: 'Aspect ratio for ultra models (e.g., "16:9")',
     },
+    image_ids: {
+      type: 'array',
+      items: {
+        type: 'string',
+      },
+      description:
+        'Optional image IDs from uploaded/generated images to use as reference. Flux currently uses the first image ID as image_prompt.',
+    },
+    image_prompt_strength: {
+      type: 'number',
+      description:
+        'Optional strength for reference image conditioning. Supported on /v1/flux-pro-1.1-ultra only.',
+    },
   },
   required: [],
 };
@@ -101,6 +115,8 @@ class FluxAPI extends Tool {
     FLUX_PRO_FINETUNED: -0.06, // /v1/flux-pro-finetuned
     FLUX_PRO_1_1_ULTRA_FINETUNED: -0.07, // /v1/flux-pro-1.1-ultra-finetuned
   };
+  static IMAGE_PROMPT_ENDPOINTS = new Set(['/v1/flux-pro-1.1', '/v1/flux-dev', '/v1/flux-pro-1.1-ultra']);
+  static IMAGE_PROMPT_STRENGTH_ENDPOINTS = new Set(['/v1/flux-pro-1.1-ultra']);
 
   constructor(fields = {}) {
     super();
@@ -110,6 +126,8 @@ class FluxAPI extends Tool {
       hasFileStrategy: !!fields.fileStrategy,
       hasFluxApiKey: !!fields.FLUX_API_KEY,
       hasProcessFileURL: !!fields.processFileURL,
+      hasReq: !!fields.req,
+      imageFilesCount: fields.imageFiles?.length ?? 0,
       isAgent: fields.isAgent,
       override: fields.override,
     });
@@ -118,7 +136,9 @@ class FluxAPI extends Tool {
     this.override = fields.override ?? false;
 
     this.userId = fields.userId;
+    this.req = fields.req;
     this.fileStrategy = fields.fileStrategy;
+    this.imageFiles = fields.imageFiles ?? [];
 
     /** @type {boolean} **/
     this.isAgent = fields.isAgent;
@@ -138,11 +158,12 @@ class FluxAPI extends Tool {
 
     this.name = 'flux';
     this.description =
-      'Use Flux to generate images from text descriptions. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls. Uses flux-pro-1.1 by default for best quality.';
+      'Use Flux to generate images from text descriptions, with optional reference image support via image_ids. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls. Uses flux-pro-1.1 by default for best quality.';
 
     this.description_for_model = `// Transform any image description into a detailed, high-quality prompt. Never submit a prompt under 3 sentences. Follow these core rules:
     // 1. ALWAYS enhance basic prompts into 5-10 detailed sentences (e.g., "a cat" becomes: "A close-up photo of a sleek Siamese cat with piercing blue eyes. The cat sits elegantly on a vintage leather armchair, its tail curled gracefully around its paws. Warm afternoon sunlight streams through a nearby window, casting gentle shadows across its face and highlighting the subtle variations in its cream and chocolate-point fur. The background is softly blurred, creating a shallow depth of field that draws attention to the cat's expressive features. The overall composition has a peaceful, contemplative mood with a professional photography style.")
     // 2. Each prompt MUST be 3-6 descriptive sentences minimum, focusing on visual elements: lighting, composition, mood, and style
+    // 3. If the user asks to use uploaded/generated images as visual references, include their IDs in image_ids (do not pass raw base64)
     // Use action: 'list_finetunes' to see available custom models. When using finetunes, use endpoint: '/v1/flux-pro-finetuned' (default) or '/v1/flux-pro-1.1-ultra-finetuned' for higher quality and aspect ratio.`;
 
     // Add base URL from environment variable with fallback
@@ -170,6 +191,125 @@ class FluxAPI extends Tool {
       return value;
     }
     return JSON.stringify(value, null, 2);
+  }
+
+  /** @param {Record<string, unknown>} payload */
+  sanitizePayloadForLogs(payload) {
+    const sanitized = { ...payload };
+    if (typeof sanitized.prompt === 'string') {
+      sanitized.prompt = sanitized.prompt.substring(0, 100) + '...';
+    }
+    if (typeof sanitized.image_prompt === 'string') {
+      sanitized.image_prompt = `<base64 omitted (${sanitized.image_prompt.length} chars)>`;
+    }
+    return sanitized;
+  }
+
+  /**
+   * Resolves image IDs into file records. Missing IDs are fetched from DB.
+   * @param {string[]} imageIds
+   */
+  async resolveImageFiles(imageIds = []) {
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return [];
+    }
+
+    const requestFilesMap = Object.fromEntries(this.imageFiles.map((f) => [f.file_id, { ...f }]));
+    const orderedFiles = new Array(imageIds.length);
+    const idsToFetch = [];
+    const indexOfMissing = Object.create(null);
+
+    for (let i = 0; i < imageIds.length; i++) {
+      const id = imageIds[i];
+      const file = requestFilesMap[id];
+      if (file) {
+        orderedFiles[i] = file;
+      } else {
+        idsToFetch.push(id);
+        indexOfMissing[id] = i;
+      }
+    }
+
+    if (idsToFetch.length && this.req?.user?.id) {
+      const fetchedFiles = await getFiles(
+        {
+          user: this.req.user.id,
+          file_id: { $in: idsToFetch },
+          height: { $exists: true },
+          width: { $exists: true },
+        },
+        {},
+        {},
+      );
+
+      for (const file of fetchedFiles) {
+        requestFilesMap[file.file_id] = file;
+        orderedFiles[indexOfMissing[file.file_id]] = file;
+      }
+    }
+
+    return orderedFiles.filter(Boolean);
+  }
+
+  /**
+   * Converts a stored image file to base64 for Flux image_prompt.
+   * @param {MongoFile} imageFile
+   */
+  async imageFileToBase64(imageFile) {
+    const source = imageFile.source || this.fileStrategy;
+    if (!source) {
+      throw new Error(`No source found for image file: ${imageFile.file_id}`);
+    }
+
+    const { getDownloadStream } = getStrategyFunctions(source);
+    if (!getDownloadStream) {
+      throw new Error(`No download stream method found for source: ${source}`);
+    }
+
+    const stream = await getDownloadStream(this.req, imageFile.filepath);
+    if (!stream) {
+      throw new Error(`Failed to get download stream for image file: ${imageFile.file_id}`);
+    }
+
+    const chunks = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks).toString('base64');
+  }
+
+  /**
+   * Resolve and encode the first reference image from image_ids.
+   * @param {string[]} imageIds
+   */
+  async getReferenceImageBase64(imageIds = []) {
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return null;
+    }
+
+    const resolvedFiles = await this.resolveImageFiles(imageIds);
+    if (!resolvedFiles.length) {
+      throw new Error('No valid image files found for the provided image_ids.');
+    }
+
+    if (resolvedFiles.length > 1) {
+      logger.debug('[FluxAPI] Multiple image_ids supplied; using the first image as image_prompt', {
+        requestedCount: imageIds.length,
+        resolvedCount: resolvedFiles.length,
+      });
+    }
+
+    return this.imageFileToBase64(resolvedFiles[0]);
+  }
+
+  /** @param {string} endpoint */
+  supportsImagePrompt(endpoint) {
+    return FluxAPI.IMAGE_PROMPT_ENDPOINTS.has(endpoint);
+  }
+
+  /** @param {string} endpoint */
+  supportsImagePromptStrength(endpoint) {
+    return FluxAPI.IMAGE_PROMPT_STRENGTH_ENDPOINTS.has(endpoint);
   }
 
   getApiKey() {
@@ -211,6 +351,8 @@ class FluxAPI extends Tool {
       endpoint: data.endpoint,
       width: data.width,
       height: data.height,
+      hasImageIds: Array.isArray(data.image_ids) && data.image_ids.length > 0,
+      imageIdsCount: Array.isArray(data.image_ids) ? data.image_ids.length : 0,
     });
 
     const { action = 'generate', ...imageData } = data;
@@ -243,6 +385,8 @@ class FluxAPI extends Tool {
 
     logger.info('[FluxAPI] Proceeding with image generation for prompt:', imageData.prompt.substring(0, 100) + '...');
 
+    const endpoint = imageData.endpoint || '/v1/flux-pro-1.1';
+
     let payload = {
       prompt: imageData.prompt,
       prompt_upsampling: imageData.prompt_upsampling || false,
@@ -266,8 +410,49 @@ class FluxAPI extends Tool {
     if (imageData.raw) {
       payload.raw = imageData.raw;
     }
+    if (imageData.aspect_ratio) {
+      payload.aspect_ratio = imageData.aspect_ratio;
+    }
 
-    const generateUrl = `${this.baseUrl}${imageData.endpoint || '/v1/flux-pro-1.1'}`;
+    if (Array.isArray(imageData.image_ids) && imageData.image_ids.length > 0) {
+      if (!this.supportsImagePrompt(endpoint)) {
+        return this.returnValue(
+          `Reference images are not supported for endpoint "${endpoint}". Use one of: ${Array.from(
+            FluxAPI.IMAGE_PROMPT_ENDPOINTS,
+          ).join(', ')}`,
+        );
+      }
+
+      try {
+        const imagePrompt = await this.getReferenceImageBase64(imageData.image_ids);
+        if (imagePrompt) {
+          payload.image_prompt = imagePrompt;
+        }
+      } catch (error) {
+        const details = this.getDetails(error?.message ?? error);
+        logger.error('[FluxAPI] Failed to process reference image IDs:', {
+          image_ids: imageData.image_ids,
+          details,
+        });
+        return this.returnValue(`Failed to process reference image(s): ${details}`);
+      }
+    }
+
+    if (imageData.image_prompt_strength !== undefined) {
+      if (!payload.image_prompt) {
+        logger.warn(
+          '[FluxAPI] image_prompt_strength provided without a valid reference image; ignoring.',
+        );
+      } else if (this.supportsImagePromptStrength(endpoint)) {
+        payload.image_prompt_strength = imageData.image_prompt_strength;
+      } else {
+        logger.warn(
+          `[FluxAPI] image_prompt_strength is not supported for endpoint "${endpoint}"; ignoring.`,
+        );
+      }
+    }
+
+    const generateUrl = `${this.baseUrl}${endpoint}`;
     const resultUrl = `${this.baseUrl}/v1/get_result`;
 
     logger.debug('[FluxAPI] Generating image with payload:', payload);
@@ -280,10 +465,7 @@ class FluxAPI extends Tool {
         method: 'POST',
         hasApiKey: !!requestApiKey,
         apiKeyPrefix: requestApiKey ? requestApiKey.substring(0, 8) + '...' : 'none',
-        payload: {
-          ...payload,
-          prompt: payload.prompt.substring(0, 100) + '...',
-        },
+        payload: this.sanitizePayloadForLogs(payload),
         headers: {
           'x-key': '***',
           'Content-Type': 'application/json',
@@ -320,10 +502,7 @@ class FluxAPI extends Tool {
         statusText: error?.response?.statusText,
         hasApiKey: !!requestApiKey,
         apiKeyPrefix: requestApiKey ? requestApiKey.substring(0, 8) + '...' : 'none',
-        requestPayload: {
-          ...payload,
-          prompt: payload.prompt.substring(0, 100) + '...',
-        },
+        requestPayload: this.sanitizePayloadForLogs(payload),
         responseHeaders: error?.response?.headers,
         responseData: error?.response?.data,
         errorMessage: error.message,
@@ -597,6 +776,20 @@ class FluxAPI extends Tool {
       );
     }
 
+    if (Array.isArray(imageData.image_ids) && imageData.image_ids.length > 0) {
+      return this.returnValue(
+        `Reference images are not currently supported for finetuned endpoint "${endpoint}". Use non-finetuned endpoints with image_ids: ${Array.from(
+          FluxAPI.IMAGE_PROMPT_ENDPOINTS,
+        ).join(', ')}`,
+      );
+    }
+
+    if (imageData.image_prompt_strength !== undefined) {
+      logger.warn(
+        '[FluxAPI] image_prompt_strength provided for finetuned generation without reference image support; ignoring.',
+      );
+    }
+
     let payload = {
       prompt: imageData.prompt,
       prompt_upsampling: imageData.prompt_upsampling || false,
@@ -623,6 +816,9 @@ class FluxAPI extends Tool {
     if (imageData.raw) {
       payload.raw = imageData.raw;
     }
+    if (imageData.aspect_ratio) {
+      payload.aspect_ratio = imageData.aspect_ratio;
+    }
 
     const generateUrl = `${this.baseUrl}${endpoint}`;
     const resultUrl = `${this.baseUrl}/v1/get_result`;
@@ -637,10 +833,7 @@ class FluxAPI extends Tool {
         method: 'POST',
         finetune_id: imageData.finetune_id,
         endpoint,
-        payload: {
-          ...payload,
-          prompt: payload.prompt.substring(0, 100) + '...',
-        },
+        payload: this.sanitizePayloadForLogs(payload),
       });
 
       taskResponse = await axios.post(generateUrl, payload, {
@@ -665,10 +858,7 @@ class FluxAPI extends Tool {
         statusCode: error?.response?.status,
         statusText: error?.response?.statusText,
         responseData: error?.response?.data,
-        requestPayload: {
-          ...payload,
-          prompt: payload.prompt.substring(0, 100) + '...',
-        },
+        requestPayload: this.sanitizePayloadForLogs(payload),
         errorMessage: error.message,
         errorCode: error.code,
         details,
