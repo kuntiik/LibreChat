@@ -12,8 +12,9 @@ const fluxApiJsonSchema = {
   properties: {
     action: {
       type: 'string',
-      enum: ['generate'],
-      description: 'Action to perform: "generate" for image generation.',
+      enum: ['generate', 'list_finetunes', 'generate_finetuned'],
+      description:
+        'Action to perform: "generate" for image generation, "generate_finetuned" for finetuned model generation, "list_finetunes" to get available custom models',
     },
     prompt: {
       type: 'string',
@@ -53,14 +54,23 @@ const fluxApiJsonSchema = {
         '/v1/flux-2-pro',
         '/v1/flux-2-max',
         '/v1/flux-2-flex',
-        '/v1/flux-2-klein',
+        '/v1/flux-2-klein-4b',
+        '/v1/flux-2-klein-9b',
+        '/v1/flux-kontext-pro',
+        '/v1/flux-kontext-max',
+        '/v1/flux-pro-1.1',
+        '/v1/flux-pro',
+        '/v1/flux-dev',
+        '/v1/flux-pro-1.1-ultra',
+        '/v1/flux-pro-finetuned',
+        '/v1/flux-pro-1.1-ultra-finetuned',
       ],
       description: 'Endpoint to use for image generation.',
     },
     raw: {
       type: 'boolean',
       description:
-        'Generate less processed, more natural-looking images. Only works for /v1/flux-pro-1.1-ultra.',
+        'Generate less processed, more natural-looking images. Only works for /v1/flux-pro-1.1-ultra (legacy endpoint).',
     },
     finetune_id: {
       type: 'string',
@@ -76,7 +86,7 @@ const fluxApiJsonSchema = {
     },
     aspect_ratio: {
       type: 'string',
-      description: 'Aspect ratio for ultra models (e.g., "16:9")',
+      description: 'Optional aspect ratio for supported models (e.g., "16:9").',
     },
     image_ids: {
       type: 'array',
@@ -84,12 +94,12 @@ const fluxApiJsonSchema = {
         type: 'string',
       },
       description:
-        'Optional image IDs from uploaded/generated images to use as reference. Flux currently uses the first image ID as image_prompt.',
+        'Optional image IDs from uploaded/generated images to use as visual reference. For FLUX.2/Kontext endpoints, these map to input_image, input_image_2, etc. For legacy endpoints, first image maps to image_prompt.',
     },
     image_prompt_strength: {
       type: 'number',
       description:
-        'Optional strength for reference image conditioning. Supported on /v1/flux-pro-1.1-ultra only.',
+        'Optional strength for legacy image_prompt conditioning. Supported on /v1/flux-pro-1.1-ultra only.',
     },
   },
   required: [],
@@ -112,7 +122,21 @@ class FluxAPI extends Tool {
     FLUX_PRO_FINETUNED: -0.06, // /v1/flux-pro-finetuned
     FLUX_PRO_1_1_ULTRA_FINETUNED: -0.07, // /v1/flux-pro-1.1-ultra-finetuned
   };
-  static IMAGE_PROMPT_ENDPOINTS = new Set(['/v1/flux-pro-1.1', '/v1/flux-dev', '/v1/flux-pro-1.1-ultra']);
+  static LEGACY_IMAGE_PROMPT_ENDPOINTS = new Set([
+    '/v1/flux-pro-1.1',
+    '/v1/flux-pro',
+    '/v1/flux-dev',
+    '/v1/flux-pro-1.1-ultra',
+  ]);
+  static INPUT_IMAGE_ENDPOINTS = new Set([
+    '/v1/flux-2-pro',
+    '/v1/flux-2-max',
+    '/v1/flux-2-flex',
+    '/v1/flux-2-klein-4b',
+    '/v1/flux-2-klein-9b',
+    '/v1/flux-kontext-pro',
+    '/v1/flux-kontext-max',
+  ]);
   static IMAGE_PROMPT_STRENGTH_ENDPOINTS = new Set(['/v1/flux-pro-1.1-ultra']);
 
   constructor(fields = {}) {
@@ -155,12 +179,13 @@ class FluxAPI extends Tool {
 
     this.name = 'flux';
     this.description =
-      'Use Flux to generate images from text descriptions. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls. Uses flux-pro-1.1 by default for best quality.';
+      'Use Flux to generate images from text descriptions, with optional image references via image_ids. This tool can generate images and list available finetunes. Each generate call creates one image.';
 
     this.description_for_model = `// Transform any image description into a detailed, high-quality prompt. Never submit a prompt under 3 sentences. Follow these core rules:
     // 1. ALWAYS enhance basic prompts into 5-10 detailed sentences (e.g., "a cat" becomes: "A close-up photo of a sleek Siamese cat with piercing blue eyes. The cat sits elegantly on a vintage leather armchair, its tail curled gracefully around its paws. Warm afternoon sunlight streams through a nearby window, casting gentle shadows across its face and highlighting the subtle variations in its cream and chocolate-point fur. The background is softly blurred, creating a shallow depth of field that draws attention to the cat's expressive features. The overall composition has a peaceful, contemplative mood with a professional photography style.")
     // 2. Each prompt MUST be 3-6 descriptive sentences minimum, focusing on visual elements: lighting, composition, mood, and style
-    // Available endpoints: '/v1/flux-2-pro' (default, best quality), '/v1/flux-2-max' (highest quality), '/v1/flux-2-flex' (flexible), '/v1/flux-2-klein' (fast/efficient). Always use action: 'generate' with one of these endpoints.`;
+    // 3. If user wants a reference image, pass its ID(s) in image_ids; do NOT pass raw base64.
+    // Available endpoints: '/v1/flux-2-pro' (default), '/v1/flux-2-max', '/v1/flux-2-flex', '/v1/flux-2-klein-4b', '/v1/flux-2-klein-9b', '/v1/flux-kontext-pro', '/v1/flux-kontext-max'.`;
 
     // Add base URL from environment variable with fallback
     this.baseUrl = process.env.FLUX_API_BASE_URL || 'https://api.us1.bfl.ai';
@@ -197,6 +222,14 @@ class FluxAPI extends Tool {
     }
     if (typeof sanitized.image_prompt === 'string') {
       sanitized.image_prompt = `<base64 omitted (${sanitized.image_prompt.length} chars)>`;
+    }
+    for (const key of Object.keys(sanitized)) {
+      if (key === 'input_image' || /^input_image_\d+$/.test(key)) {
+        const value = sanitized[key];
+        if (typeof value === 'string') {
+          sanitized[key] = `<base64/url omitted (${value.length} chars)>`;
+        }
+      }
     }
     return sanitized;
   }
@@ -275,12 +308,13 @@ class FluxAPI extends Tool {
   }
 
   /**
-   * Resolve and encode the first reference image from image_ids.
+   * Resolve and encode reference images from image_ids.
    * @param {string[]} imageIds
+   * @param {number} maxImages
    */
-  async getReferenceImageBase64(imageIds = []) {
+  async getReferenceImagesBase64(imageIds = [], maxImages = 1) {
     if (!Array.isArray(imageIds) || imageIds.length === 0) {
-      return null;
+      return [];
     }
 
     const resolvedFiles = await this.resolveImageFiles(imageIds);
@@ -288,24 +322,56 @@ class FluxAPI extends Tool {
       throw new Error('No valid image files found for the provided image_ids.');
     }
 
-    if (resolvedFiles.length > 1) {
-      logger.debug('[FluxAPI] Multiple image_ids supplied; using the first image as image_prompt', {
+    const selectedFiles = resolvedFiles.slice(0, Math.max(1, maxImages));
+    if (resolvedFiles.length > selectedFiles.length) {
+      logger.debug('[FluxAPI] More image_ids provided than supported for endpoint; truncating.', {
         requestedCount: imageIds.length,
         resolvedCount: resolvedFiles.length,
+        usedCount: selectedFiles.length,
       });
     }
 
-    return this.imageFileToBase64(resolvedFiles[0]);
+    const images = [];
+    for (const file of selectedFiles) {
+      images.push(await this.imageFileToBase64(file));
+    }
+
+    return images;
   }
 
   /** @param {string} endpoint */
-  supportsImagePrompt(endpoint) {
-    return FluxAPI.IMAGE_PROMPT_ENDPOINTS.has(endpoint);
+  usesInputImage(endpoint) {
+    return FluxAPI.INPUT_IMAGE_ENDPOINTS.has(endpoint);
+  }
+
+  /** @param {string} endpoint */
+  supportsReferenceImages(endpoint) {
+    return this.usesInputImage(endpoint) || FluxAPI.LEGACY_IMAGE_PROMPT_ENDPOINTS.has(endpoint);
   }
 
   /** @param {string} endpoint */
   supportsImagePromptStrength(endpoint) {
     return FluxAPI.IMAGE_PROMPT_STRENGTH_ENDPOINTS.has(endpoint);
+  }
+
+  /** @param {string} endpoint */
+  getMaxReferenceImages(endpoint) {
+    if (
+      endpoint === '/v1/flux-2-pro' ||
+      endpoint === '/v1/flux-2-max' ||
+      endpoint === '/v1/flux-2-flex'
+    ) {
+      return 8;
+    }
+    if (
+      endpoint === '/v1/flux-2-klein-4b' ||
+      endpoint === '/v1/flux-2-klein-9b' ||
+      endpoint === '/v1/flux-kontext-pro' ||
+      endpoint === '/v1/flux-kontext-max'
+    ) {
+      return 4;
+    }
+    return 1;
   }
 
   getApiKey() {
@@ -381,7 +447,7 @@ class FluxAPI extends Tool {
 
     logger.info('[FluxAPI] Proceeding with image generation for prompt:', imageData.prompt.substring(0, 100) + '...');
 
-    const endpoint = imageData.endpoint || '/v1/flux-pro-1.1';
+    const endpoint = imageData.endpoint || '/v1/flux-2-pro';
 
     let payload = {
       prompt: imageData.prompt,
@@ -404,10 +470,71 @@ class FluxAPI extends Tool {
       payload.seed = imageData.seed;
     }
     if (imageData.raw) {
-      payload.raw = imageData.raw;
+      if (endpoint === '/v1/flux-pro-1.1-ultra') {
+        payload.raw = imageData.raw;
+      } else {
+        logger.warn(`[FluxAPI] raw mode is not supported for endpoint "${endpoint}"; ignoring.`);
+      }
+    }
+    if (imageData.aspect_ratio) {
+      payload.aspect_ratio = imageData.aspect_ratio;
     }
 
-    const generateUrl = `${this.baseUrl}${imageData.endpoint || '/v1/flux-2-pro'}`;
+    if (Array.isArray(imageData.image_ids) && imageData.image_ids.length > 0) {
+      const supportedRefEndpoints = new Set([
+        ...Array.from(FluxAPI.INPUT_IMAGE_ENDPOINTS),
+        ...Array.from(FluxAPI.LEGACY_IMAGE_PROMPT_ENDPOINTS),
+      ]);
+      if (!this.supportsReferenceImages(endpoint)) {
+        return this.returnValue(
+          `Reference images are not supported for endpoint "${endpoint}". Use one of: ${Array.from(
+            supportedRefEndpoints,
+          ).join(', ')}`,
+        );
+      }
+
+      try {
+        const maxReferenceImages = this.getMaxReferenceImages(endpoint);
+        const referenceImages = await this.getReferenceImagesBase64(
+          imageData.image_ids,
+          maxReferenceImages,
+        );
+
+        if (referenceImages.length) {
+          if (this.usesInputImage(endpoint)) {
+            payload.input_image = referenceImages[0];
+            for (let i = 1; i < referenceImages.length; i++) {
+              payload[`input_image_${i + 1}`] = referenceImages[i];
+            }
+          } else {
+            payload.image_prompt = referenceImages[0];
+          }
+        }
+      } catch (error) {
+        const details = this.getDetails(error?.message ?? error);
+        logger.error('[FluxAPI] Failed to process reference image IDs:', {
+          image_ids: imageData.image_ids,
+          details,
+        });
+        return this.returnValue(`Failed to process reference image(s): ${details}`);
+      }
+    }
+
+    if (imageData.image_prompt_strength !== undefined) {
+      if (!payload.image_prompt) {
+        logger.warn(
+          '[FluxAPI] image_prompt_strength provided without legacy image_prompt context; ignoring.',
+        );
+      } else if (this.supportsImagePromptStrength(endpoint)) {
+        payload.image_prompt_strength = imageData.image_prompt_strength;
+      } else {
+        logger.warn(
+          `[FluxAPI] image_prompt_strength is not supported for endpoint "${endpoint}"; ignoring.`,
+        );
+      }
+    }
+
+    const generateUrl = `${this.baseUrl}${endpoint}`;
     const resultUrl = `${this.baseUrl}/v1/get_result`;
 
     logger.debug('[FluxAPI] Generating image with payload:', payload);
@@ -732,9 +859,13 @@ class FluxAPI extends Tool {
     }
 
     if (Array.isArray(imageData.image_ids) && imageData.image_ids.length > 0) {
+      const supportedRefEndpoints = new Set([
+        ...Array.from(FluxAPI.INPUT_IMAGE_ENDPOINTS),
+        ...Array.from(FluxAPI.LEGACY_IMAGE_PROMPT_ENDPOINTS),
+      ]);
       return this.returnValue(
         `Reference images are not currently supported for finetuned endpoint "${endpoint}". Use non-finetuned endpoints with image_ids: ${Array.from(
-          FluxAPI.IMAGE_PROMPT_ENDPOINTS,
+          supportedRefEndpoints,
         ).join(', ')}`,
       );
     }

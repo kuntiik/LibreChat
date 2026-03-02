@@ -130,11 +130,18 @@ export const fluxApiSchema: ExtendedJsonSchema = {
     safety_tolerance: {
       type: 'number',
       description:
-        'Tolerance level for input and output moderation. Between 0 and 6, 0 being most strict, 6 being least strict.',
+        'Tolerance level for input and output moderation. Between 0 and 5, 0 being most strict, 5 being least strict.',
     },
     endpoint: {
       type: 'string',
       enum: [
+        '/v1/flux-2-pro',
+        '/v1/flux-2-max',
+        '/v1/flux-2-flex',
+        '/v1/flux-2-klein-4b',
+        '/v1/flux-2-klein-9b',
+        '/v1/flux-kontext-pro',
+        '/v1/flux-kontext-max',
         '/v1/flux-pro-1.1',
         '/v1/flux-pro',
         '/v1/flux-dev',
@@ -147,7 +154,7 @@ export const fluxApiSchema: ExtendedJsonSchema = {
     raw: {
       type: 'boolean',
       description:
-        'Generate less processed, more natural-looking images. Only works for /v1/flux-pro-1.1-ultra.',
+        'Generate less processed, more natural-looking images. Only works for /v1/flux-pro-1.1-ultra (legacy endpoint).',
     },
     finetune_id: {
       type: 'string',
@@ -163,7 +170,7 @@ export const fluxApiSchema: ExtendedJsonSchema = {
     },
     aspect_ratio: {
       type: 'string',
-      description: 'Aspect ratio for ultra models (e.g., "16:9")',
+      description: 'Optional aspect ratio for supported models (e.g., "16:9").',
     },
     image_ids: {
       type: 'array',
@@ -171,12 +178,12 @@ export const fluxApiSchema: ExtendedJsonSchema = {
         type: 'string',
       },
       description:
-        'Optional image IDs from uploaded/generated images to use as reference. Flux currently uses the first image ID as image_prompt.',
+        'Optional image IDs from uploaded/generated images to use as visual reference. For FLUX.2/Kontext endpoints, these map to input_image, input_image_2, etc. For legacy endpoints, first image maps to image_prompt.',
     },
     image_prompt_strength: {
       type: 'number',
       description:
-        'Optional strength for reference image conditioning. Supported on /v1/flux-pro-1.1-ultra only.',
+        'Optional strength for legacy image_prompt conditioning. Supported on /v1/flux-pro-1.1-ultra only.',
     },
   },
   required: [],
@@ -508,7 +515,7 @@ export const toolDefinitions: Record<string, ToolRegistryDefinition> = {
   flux: {
     name: 'flux',
     description:
-      'Use Flux to generate images from text descriptions, with optional reference image support via image_ids. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls.',
+      'Use Flux to generate images from text descriptions, with optional reference image support via image_ids. Supports FLUX.2 and legacy Flux endpoints. Each generate call creates one image.',
     schema: fluxApiSchema,
     toolType: 'builtin',
   },
