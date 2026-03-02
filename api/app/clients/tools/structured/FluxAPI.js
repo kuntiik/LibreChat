@@ -12,9 +12,8 @@ const fluxApiJsonSchema = {
   properties: {
     action: {
       type: 'string',
-      enum: ['generate', 'list_finetunes', 'generate_finetuned'],
-      description:
-        'Action to perform: "generate" for image generation, "generate_finetuned" for finetuned model generation, "list_finetunes" to get available custom models',
+      enum: ['generate'],
+      description: 'Action to perform: "generate" for image generation.',
     },
     prompt: {
       type: 'string',
@@ -46,17 +45,15 @@ const fluxApiJsonSchema = {
     safety_tolerance: {
       type: 'number',
       description:
-        'Tolerance level for input and output moderation. Between 0 and 6, 0 being most strict, 6 being least strict.',
+        'Tolerance level for input and output moderation. Between 0 and 5, 0 being most strict, 5 being least strict.',
     },
     endpoint: {
       type: 'string',
       enum: [
-        '/v1/flux-pro-1.1',
-        '/v1/flux-pro',
-        '/v1/flux-dev',
-        '/v1/flux-pro-1.1-ultra',
-        '/v1/flux-pro-finetuned',
-        '/v1/flux-pro-1.1-ultra-finetuned',
+        '/v1/flux-2-pro',
+        '/v1/flux-2-max',
+        '/v1/flux-2-flex',
+        '/v1/flux-2-klein',
       ],
       description: 'Endpoint to use for image generation.',
     },
@@ -158,13 +155,12 @@ class FluxAPI extends Tool {
 
     this.name = 'flux';
     this.description =
-      'Use Flux to generate images from text descriptions, with optional reference image support via image_ids. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls. Uses flux-pro-1.1 by default for best quality.';
+      'Use Flux to generate images from text descriptions. This tool can generate images and list available finetunes. Each generate call creates one image. For multiple images, make multiple consecutive calls. Uses flux-pro-1.1 by default for best quality.';
 
     this.description_for_model = `// Transform any image description into a detailed, high-quality prompt. Never submit a prompt under 3 sentences. Follow these core rules:
     // 1. ALWAYS enhance basic prompts into 5-10 detailed sentences (e.g., "a cat" becomes: "A close-up photo of a sleek Siamese cat with piercing blue eyes. The cat sits elegantly on a vintage leather armchair, its tail curled gracefully around its paws. Warm afternoon sunlight streams through a nearby window, casting gentle shadows across its face and highlighting the subtle variations in its cream and chocolate-point fur. The background is softly blurred, creating a shallow depth of field that draws attention to the cat's expressive features. The overall composition has a peaceful, contemplative mood with a professional photography style.")
     // 2. Each prompt MUST be 3-6 descriptive sentences minimum, focusing on visual elements: lighting, composition, mood, and style
-    // 3. If the user asks to use uploaded/generated images as visual references, include their IDs in image_ids (do not pass raw base64)
-    // Use action: 'list_finetunes' to see available custom models. When using finetunes, use endpoint: '/v1/flux-pro-finetuned' (default) or '/v1/flux-pro-1.1-ultra-finetuned' for higher quality and aspect ratio.`;
+    // Available endpoints: '/v1/flux-2-pro' (default, best quality), '/v1/flux-2-max' (highest quality), '/v1/flux-2-flex' (flexible), '/v1/flux-2-klein' (fast/efficient). Always use action: 'generate' with one of these endpoints.`;
 
     // Add base URL from environment variable with fallback
     this.baseUrl = process.env.FLUX_API_BASE_URL || 'https://api.us1.bfl.ai';
@@ -390,7 +386,7 @@ class FluxAPI extends Tool {
     let payload = {
       prompt: imageData.prompt,
       prompt_upsampling: imageData.prompt_upsampling || false,
-      safety_tolerance: imageData.safety_tolerance || 6,
+      safety_tolerance: imageData.safety_tolerance ?? 5,
       output_format: imageData.output_format || 'png',
     };
 
@@ -410,49 +406,8 @@ class FluxAPI extends Tool {
     if (imageData.raw) {
       payload.raw = imageData.raw;
     }
-    if (imageData.aspect_ratio) {
-      payload.aspect_ratio = imageData.aspect_ratio;
-    }
 
-    if (Array.isArray(imageData.image_ids) && imageData.image_ids.length > 0) {
-      if (!this.supportsImagePrompt(endpoint)) {
-        return this.returnValue(
-          `Reference images are not supported for endpoint "${endpoint}". Use one of: ${Array.from(
-            FluxAPI.IMAGE_PROMPT_ENDPOINTS,
-          ).join(', ')}`,
-        );
-      }
-
-      try {
-        const imagePrompt = await this.getReferenceImageBase64(imageData.image_ids);
-        if (imagePrompt) {
-          payload.image_prompt = imagePrompt;
-        }
-      } catch (error) {
-        const details = this.getDetails(error?.message ?? error);
-        logger.error('[FluxAPI] Failed to process reference image IDs:', {
-          image_ids: imageData.image_ids,
-          details,
-        });
-        return this.returnValue(`Failed to process reference image(s): ${details}`);
-      }
-    }
-
-    if (imageData.image_prompt_strength !== undefined) {
-      if (!payload.image_prompt) {
-        logger.warn(
-          '[FluxAPI] image_prompt_strength provided without a valid reference image; ignoring.',
-        );
-      } else if (this.supportsImagePromptStrength(endpoint)) {
-        payload.image_prompt_strength = imageData.image_prompt_strength;
-      } else {
-        logger.warn(
-          `[FluxAPI] image_prompt_strength is not supported for endpoint "${endpoint}"; ignoring.`,
-        );
-      }
-    }
-
-    const generateUrl = `${this.baseUrl}${endpoint}`;
+    const generateUrl = `${this.baseUrl}${imageData.endpoint || '/v1/flux-2-pro'}`;
     const resultUrl = `${this.baseUrl}/v1/get_result`;
 
     logger.debug('[FluxAPI] Generating image with payload:', payload);
@@ -793,7 +748,7 @@ class FluxAPI extends Tool {
     let payload = {
       prompt: imageData.prompt,
       prompt_upsampling: imageData.prompt_upsampling || false,
-      safety_tolerance: imageData.safety_tolerance || 6,
+      safety_tolerance: imageData.safety_tolerance ?? 5,
       output_format: imageData.output_format || 'png',
       finetune_id: imageData.finetune_id,
       finetune_strength: imageData.finetune_strength || 1.0,
