@@ -342,7 +342,7 @@ describe('AttachFileMenu', () => {
   });
 
   describe('Agent Capabilities', () => {
-    it('should show OCR Text option when context is enabled', () => {
+    it('should NOT show OCR Text option when context is enabled', () => {
       mockUseAgentCapabilities.mockReturnValue({
         contextEnabled: true,
         fileSearchEnabled: false,
@@ -356,7 +356,7 @@ describe('AttachFileMenu', () => {
       const button = screen.getByRole('button', { name: /attach file options/i });
       fireEvent.click(button);
 
-      expect(screen.getByText('Upload OCR Text')).toBeInTheDocument();
+      expect(screen.queryByText('Upload OCR Text')).not.toBeInTheDocument();
     });
 
     it('should show File Search option when enabled and allowed by agent', () => {
@@ -428,7 +428,7 @@ describe('AttachFileMenu', () => {
       expect(screen.getByText('Upload Code Files')).toBeInTheDocument();
     });
 
-    it('should show all options when all capabilities are enabled', () => {
+    it('should show provider, file search, and code options when all capabilities are enabled', () => {
       mockUseAgentCapabilities.mockReturnValue({
         contextEnabled: true,
         fileSearchEnabled: true,
@@ -449,7 +449,7 @@ describe('AttachFileMenu', () => {
       fireEvent.click(button);
 
       expect(screen.getByText('Upload to Provider')).toBeInTheDocument();
-      expect(screen.getByText('Upload OCR Text')).toBeInTheDocument();
+      expect(screen.queryByText('Upload OCR Text')).not.toBeInTheDocument();
       expect(screen.getByText('Upload for File Search')).toBeInTheDocument();
       expect(screen.getByText('Upload Code Files')).toBeInTheDocument();
     });
