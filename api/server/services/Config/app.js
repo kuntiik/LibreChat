@@ -12,12 +12,28 @@ const loadBaseConfig = async () => {
   /** @type {TCustomConfig} */
   const config = (await loadCustomConfig()) ?? {};
   /** @type {Record<string, FunctionTool>} */
+   // Hardcode memory config (overrides librechat.yaml memory section)
+  config.memory = {
+    disabled: false,
+    personalize: true, // true = user can toggle memory; false = always on (no opt-out toggle)
+    tokenLimit: 2000,
+    messageWindowSize: 5,
+    validKeys: ['user_preferences', 'conversation_context', 'learned_facts'],
+    agent: {
+      provider: 'openAI', // or your custom endpoint name
+      model: 'gpt-4.1-mini',
+      instructions: 'Store only explicit user preferences and important facts.',
+      model_parameters: { temperature: 0.3 },
+    },
+    // optional; defaults to 10000 if omitted
+    charLimit: 10000,
+  };
   const systemTools = loadAndFormatTools({
     adminFilter: config.filteredTools,
     adminIncluded: config.includedTools,
     directory: paths.structuredTools,
   });
-  return AppService({ config, paths, systemTools });
+   return AppService({ config, paths, systemTools });
 };
 
 /**
