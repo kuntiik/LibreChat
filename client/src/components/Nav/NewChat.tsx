@@ -4,6 +4,7 @@ import { QueryKeys } from 'librechat-data-provider';
 import { useQueryClient } from '@tanstack/react-query';
 import { TooltipAnchor, NewChatIcon, MobileSidebar, Sidebar, Button } from '@librechat/client';
 import { CLOSE_SIDEBAR_ID, OPEN_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
+import { useGetStartupConfig } from '~/data-provider';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
@@ -26,7 +27,9 @@ export default function NewChat({
   const { newConversation: newConvo } = useNewConvo(index);
   const navigate = useNavigate();
   const localize = useLocalize();
+  const { data: startupConfig } = useGetStartupConfig();
   const { conversation } = store.useCreateConversationAtom(index);
+  const companyName = startupConfig?.appTitle ?? 'Mattoni 1873 - M Chat';
 
   const handleToggleNav = useCallback(() => {
     toggleNav();
@@ -55,6 +58,14 @@ export default function NewChat({
 
   return (
     <>
+      <div className="flex items-center gap-2 px-2 pb-1 pt-2 md:pt-3">
+        <img
+          src="assets/logo.png"
+          alt={localize('com_ui_logo', { 0: companyName })}
+          className="h-8 w-8 shrink-0 object-contain"
+        />
+        <span className="truncate text-sm font-semibold text-text-primary">{companyName}</span>
+      </div>
       <div className="flex items-center justify-between px-0.5 py-[2px] md:py-2">
         <TooltipAnchor
           description={localize('com_nav_close_sidebar')}

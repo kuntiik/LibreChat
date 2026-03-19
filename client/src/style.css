@@ -311,6 +311,38 @@ html {
 
 @font-face {
   font-display: swap;
+  font-family: Gothce;
+  font-style: normal;
+  font-weight: 400;
+  src: url('$fonts/gothce.ttf') format('truetype');
+}
+
+@font-face {
+  font-display: swap;
+  font-family: Gothce;
+  font-style: italic;
+  font-weight: 400;
+  src: url('$fonts/gothcei.ttf') format('truetype');
+}
+
+@font-face {
+  font-display: swap;
+  font-family: Gothce;
+  font-style: normal;
+  font-weight: 600;
+  src: url('$fonts/gothceb.ttf') format('truetype');
+}
+
+@font-face {
+  font-display: swap;
+  font-family: Gothce;
+  font-style: italic;
+  font-weight: 600;
+  src: url('$fonts/gothcebi.ttf') format('truetype');
+}
+
+@font-face {
+  font-display: swap;
   font-family: Inter;
   font-style: normal;
   font-weight: 400;
