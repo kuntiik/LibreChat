@@ -58,7 +58,7 @@ export default function NewChat({
 
   return (
     <>
-      <div className="flex items-center gap-2 px-2 pb-1 pt-2 md:pt-3">
+      <div className="flex items-center gap-š px-2 pb-1 pt-2 md:pt-3">
         <img
           src="assets/logo.png"
           alt={localize('com_ui_logo', { 0: companyName })}
