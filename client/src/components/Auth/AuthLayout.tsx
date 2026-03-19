@@ -65,8 +65,8 @@ function AuthLayout({
         <ThemeSelector />
       </div>
 
-      <main className="flex flex-grow items-start justify-center px-4 pt-2">
-        <div className="flex w-full max-w-[560px] flex-col items-center gap-3">
+      <main className="flex flex-grow items-center justify-center px-4 pt-2">
+        <div className="flex w-full max-w-[560px] flex-col items-center gap-3 mb-4">
           <BlinkAnimation active={isFetching}>
             <div className="flex w-full items-center justify-center gap-3">
               <img
