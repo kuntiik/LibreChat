@@ -11,6 +11,7 @@ const {
 } = require('@librechat/api');
 const { loginController } = require('~/server/controllers/auth/LoginController');
 const { createOAuthHandler } = require('~/server/controllers/auth/oauth');
+const { bulkCreateUsers } = require('~/server/services/BulkUserService');
 const { getAppConfig } = require('~/server/services/Config');
 const getLogStores = require('~/cache/getLogStores');
 const { getOpenIdConfig } = require('~/strategies');
@@ -120,6 +121,33 @@ router.post('/oauth/exchange', middleware.loginLimiter, async (req, res) => {
     res.status(500).json({
       error: 'Internal server error',
       error_code: 'INTERNAL_ERROR',
+    });
+  }
+});
+
+/**
+ * Bulk create local users from CSV or JSON payload.
+ *
+ * POST /api/admin/users/bulk-create
+ * Body:
+ * {
+ *   "csv": "email,name,username\\nuser@example.com,User Name,user",
+ *   "template": "Hello {{name}}...",
+ *   "dryRun": false
+ * }
+ * OR
+ * {
+ *   "users": [{ "email": "user@example.com", "name": "User Name", "username": "user" }]
+ * }
+ */
+router.post('/users/bulk-create', middleware.requireJwtAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await bulkCreateUsers(req.body ?? {});
+    return res.status(200).json(result);
+  } catch (error) {
+    logger.warn('[admin/users/bulk-create] Request rejected:', error.message);
+    return res.status(400).json({
+      error: error.message || 'Invalid request',
     });
   }
 });
