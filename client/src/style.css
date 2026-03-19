@@ -393,6 +393,63 @@ html {
   color: var(--brand-primary);
 }
 
+.sidebar-theme .cta-contrast,
+.dark .sidebar-theme .cta-contrast {
+  background: #ffffff !important;
+  color: var(--brand-primary) !important;
+}
+
+.sidebar-theme .cta-contrast svg {
+  color: var(--brand-primary) !important;
+}
+
+.account-settings-popover {
+  background-color: var(--surface-sidebar) !important;
+  border-color: var(--surface-sidebar-hover) !important;
+  color: #ffffff !important;
+}
+
+.account-settings-popover [role='note'] {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+
+.account-settings-popover .select-item {
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.account-settings-popover .select-item[data-active-item],
+.account-settings-popover .select-item:hover {
+  background-color: var(--surface-sidebar-hover);
+  color: #ffffff;
+}
+
+.account-settings-popover .select-item[data-active-item] {
+  box-shadow: 0 0 0 2px var(--border-focus);
+}
+
+.settings-panel-theme {
+  --presentation: #0f1b33;
+  --surface-primary: #0f1b33;
+  --surface-primary-alt: #152341;
+  --surface-secondary: #152341;
+  --surface-secondary-alt: #152341;
+  --surface-tertiary: #1b3358;
+  --surface-tertiary-alt: #1b3358;
+  --surface-hover: #1b3358;
+  --surface-hover-alt: #22406c;
+  --text-primary: #e6e8eb;
+  --text-secondary: #c7cdd8;
+  --text-secondary-alt: #cad2e0;
+  --border-light: #2a3646;
+  --border-medium: #2a3646;
+  --border-medium-alt: #1f2a37;
+  --border-xheavy: #4f6077;
+  --background: 218 54% 13%;
+  --foreground: 220 12% 91%;
+  background-color: #0f1b33 !important;
+  color: #e6e8eb;
+}
+
 @font-face {
   font-display: swap;
   font-family: Gothce;
@@ -2789,7 +2846,7 @@ html {
 }
 
 .account-settings-popover .select-item[data-active-item] {
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  box-shadow: 0 0 0 2px var(--border-focus);
 }
 
 .popover-ui[data-enter] {
