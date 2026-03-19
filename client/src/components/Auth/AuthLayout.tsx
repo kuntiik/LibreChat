@@ -25,6 +25,7 @@ function AuthLayout({
   error: TranslationKeys | null;
 }) {
   const localize = useLocalize();
+  const appTitle = startupConfig?.appTitle ?? 'Mattoni 1873 - M Chat';
 
   const hasStartupConfigError = startupConfigError !== null && startupConfigError !== undefined;
   const DisplayError = () => {
@@ -60,11 +61,16 @@ function AuthLayout({
     <div className="relative flex min-h-screen flex-col bg-white dark:bg-gray-900">
       <Banner />
       <BlinkAnimation active={isFetching}>
-        <div className="mt-6 h-10 w-full bg-cover">
+        <div className="mt-6 flex w-full items-center justify-center gap-3 px-4">
           <img
-            src="assets/logo.svg"
-            className="h-full w-full object-contain"
-            alt={localize('com_ui_logo', { 0: startupConfig?.appTitle ?? 'LibreChat' })}
+            src="assets/favicon/favicon-32x32.png"
+            className="h-8 w-8 shrink-0 object-contain"
+            alt={`${appTitle} icon`}
+          />
+          <img
+            src="assets/logo.png"
+            className="h-10 w-auto max-w-[240px] object-contain"
+            alt={localize('com_ui_logo', { 0: appTitle })}
           />
         </div>
       </BlinkAnimation>

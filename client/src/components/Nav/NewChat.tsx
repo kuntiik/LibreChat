@@ -62,7 +62,7 @@ export default function NewChat({
         <img
           src="assets/logo.png"
           alt={localize('com_ui_logo', { 0: companyName })}
-          className="h-8 w-8 shrink-0 object-contain"
+          className="h-16 w-28 shrink-0 object-contain"
         />
         <span className="truncate text-sm font-semibold text-text-primary">{companyName}</span>
       </div>
