@@ -99,10 +99,10 @@ export default function NewChat({
                 variant="outline"
                 data-testid="nav-new-chat-button"
                 aria-label={localize('com_ui_new_chat')}
-                className="rounded-md border border-transparent bg-transparent text-[#d1d6dc] duration-0 hover:bg-surface-active-alt active:bg-surface-hover-alt focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-sidebar)] md:rounded-md"
+                className="rounded-md border border-transparent bg-[#d1d6dc] text-[var(--brand-primary)] duration-0 hover:bg-[#c7ccd3] active:bg-[#b9c0c9] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-sidebar)] md:rounded-md"
                 onClick={clickHandler}
               >
-                <NewChatIcon className="icon-lg text-[#d1d6dc]" />
+                <NewChatIcon className="icon-lg text-[var(--brand-primary)]" />
               </Button>
             }
           />
