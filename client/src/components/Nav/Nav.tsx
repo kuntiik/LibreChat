@@ -262,7 +262,7 @@ const Nav = memo(
           <div
             data-testid="nav"
             className={cn(
-              'nav fixed left-0 top-0 z-[110] h-full bg-surface-primary-alt',
+              'nav sidebar-theme fixed left-0 top-0 z-[110] h-full',
               navVisible && 'active',
             )}
             style={{
@@ -286,7 +286,7 @@ const Nav = memo(
       >
         <motion.div
           data-testid="nav"
-          className={cn('nav h-full bg-surface-primary-alt', navVisible && 'active')}
+          className={cn('nav sidebar-theme h-full', navVisible && 'active')}
           style={{ width: sidebarWidth }}
           initial={false}
           animate={{
