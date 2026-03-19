@@ -58,18 +58,18 @@ function AuthLayout({
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-white dark:bg-gray-900">
+    <div className="relative flex min-h-screen flex-col bg-surface-app">
       <Banner />
       <BlinkAnimation active={isFetching}>
         <div className="mt-6 flex w-full items-center justify-center gap-3 px-4">
           <img
-            src="assets/favicon/favicon-32x32.png"
-            className="h-8 w-8 shrink-0 object-contain"
+            src="assets/favicon/android-chrome-512x512.png"
+            className="h-40 w-40 shrink-0 object-contain"
             alt={`${appTitle} icon`}
           />
           <img
             src="assets/logo.png"
-            className="h-10 w-auto max-w-[240px] object-contain"
+            className="h-40 w-auto max-w-[420px] object-contain"
             alt={localize('com_ui_logo', { 0: appTitle })}
           />
         </div>
@@ -80,10 +80,10 @@ function AuthLayout({
       </div>
 
       <main className="flex flex-grow items-center justify-center">
-        <div className="w-authPageWidth overflow-hidden bg-white px-6 py-4 dark:bg-gray-900 sm:max-w-md sm:rounded-lg">
+        <div className="w-authPageWidth overflow-hidden bg-surface-raised px-6 py-4 sm:max-w-md sm:rounded-lg">
           {!hasStartupConfigError && !isFetching && header && (
             <h1
-              className="mb-4 text-center text-3xl font-semibold text-black dark:text-white"
+              className="mb-4 text-center text-3xl font-semibold text-text-primary"
               style={{ userSelect: 'none' }}
             >
               {header}
