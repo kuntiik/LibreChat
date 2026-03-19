@@ -102,7 +102,7 @@ export default function NewChat({
                 className="rounded-md border border-transparent bg-[#d1d6dc] text-[var(--brand-primary)] duration-0 hover:bg-[#c7ccd3] active:bg-[#b9c0c9] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-sidebar)] md:rounded-md"
                 onClick={clickHandler}
               >
-                <NewChatIcon className="icon-lg text-[var(--brand-primary)]" />
+                <NewChatIcon className="icon-lg text-[var(--brand-primary-active)]" />
               </Button>
             }
           />

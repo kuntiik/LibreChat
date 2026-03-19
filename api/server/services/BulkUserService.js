@@ -5,20 +5,7 @@ const { findUser } = require('~/models');
 const DEFAULT_PASSWORD_LENGTH = 16;
 const DEFAULT_MAX_USERS = 500;
 
-const DEFAULT_EMAIL_TEMPLATE = [
-  'Hello {{name}},',
-  '',
-  'Your {{appName}} account is ready.',
-  '',
-  'Login URL: {{loginUrl}}',
-  'Email: {{email}}',
-  'Temporary password: {{password}}',
-  '',
-  'Please sign in and change your password as soon as possible.',
-  '',
-  'Best regards,',
-  '{{appName}} Team',
-].join('\n');
+const DEFAULT_EMAIL_TEMPLATE = 'Email: {{email}} Password: {{password}}';
 
 function parseBoolean(value, fallback = true) {
   if (value == null) {
