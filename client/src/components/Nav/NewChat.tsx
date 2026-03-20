@@ -29,7 +29,7 @@ export default function NewChat({
   const localize = useLocalize();
   const { data: startupConfig } = useGetStartupConfig();
   const { conversation } = store.useCreateConversationAtom(index);
-  const appTitle = 'M chat';
+  const appTitle = startupConfig?.appTitle ?? 'Mattoni 1873 - M Chat';
 
   const handleToggleNav = useCallback(() => {
     toggleNav();
@@ -58,13 +58,12 @@ export default function NewChat({
 
   return (
     <>
-      <div className="flex items-center gap-3 px-2 pb-1 pt-2 md:pt-3">
+      <div className="flex items-center justify-center px-2 pb-1 pt-2 md:pt-3">
         <img
           src="assets/logo.png"
           alt={localize('com_ui_logo', { 0: appTitle })}
           className="h-16 w-28 shrink-0 object-contain"
         />
-        <span className="truncate text-sm font-semibold text-text-primary">{companyName}</span>
       </div>
       <div className="flex items-center justify-between px-0.5 py-[2px] md:py-2">
         <TooltipAnchor
