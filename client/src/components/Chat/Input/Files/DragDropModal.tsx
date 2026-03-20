@@ -12,6 +12,7 @@ import {
 import {
   ImageUpIcon,
   FileSearch,
+  FileType2Icon,
   FileImageIcon,
   TerminalSquareIcon,
 } from 'lucide-react';
@@ -104,6 +105,13 @@ const DragDropModal = ({ onOptionSelect, setShowModal, files, isVisible }: DragD
         value: undefined,
         icon: <ImageUpIcon className="icon-md" />,
         condition: files.every((file) => getFileType(file)?.startsWith('image/')),
+      });
+    }
+    if (capabilities.contextEnabled) {
+      _options.push({
+        label: localize('com_ui_upload_ocr_text'),
+        value: EToolResources.context,
+        icon: <FileType2Icon className="icon-md" />,
       });
     }
     if (capabilities.fileSearchEnabled && fileSearchAllowedByAgent) {
