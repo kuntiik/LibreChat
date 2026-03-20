@@ -71,13 +71,13 @@ function AuthLayout({
             <div className="flex w-full items-center justify-center gap-3">
               <img
                 src="assets/logo.png"
-                className="h-40 w-auto max-w-[420px] object-contain"
+                className="h-40 w-auto object-contain"
                 alt={localize('com_ui_logo', { 0: appTitle })}
               />
 
               <img
                 src="assets/mchat_logo.png"
-                className="h-40 w-40 shrink-0 object-contain"
+                className="h-40 w-auto shrink-0 object-contain"
                 alt={`${appTitle} icon`}
               />
             </div>
