@@ -68,18 +68,20 @@ function AuthLayout({
       <main className="flex flex-grow items-center justify-center px-4 pt-2">
         <div className="flex w-full max-w-[560px] flex-col items-center gap-3 mb-4">
           <BlinkAnimation active={isFetching}>
-            <div className="flex w-full items-center justify-center gap-3">
-              <img
-                src="assets/logo.png"
-                className="h-40 w-auto object-contain"
-                alt={localize('com_ui_logo', { 0: appTitle })}
-              />
-
+            <div className="flex w-full flex-col items-center justify-center gap-2">
               <img
                 src="assets/mchat_logo.png"
                 className="h-40 w-auto shrink-0 object-contain"
                 alt={`${appTitle} icon`}
               />
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-text-secondary">by:</span>
+                <img
+                  src="assets/logo.png"
+                  className="h-8 w-auto object-contain"
+                  alt={localize('com_ui_logo', { 0: appTitle })}
+                />
+              </div>
             </div>
           </BlinkAnimation>
 
