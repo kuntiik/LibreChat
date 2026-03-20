@@ -70,14 +70,15 @@ function AuthLayout({
           <BlinkAnimation active={isFetching}>
             <div className="flex w-full items-center justify-center gap-3">
               <img
-                src="assets/favicon/android-chrome-512x512.png"
-                className="h-40 w-40 shrink-0 object-contain"
-                alt={`${appTitle} icon`}
-              />
-              <img
                 src="assets/logo.png"
                 className="h-40 w-auto max-w-[420px] object-contain"
                 alt={localize('com_ui_logo', { 0: appTitle })}
+              />
+
+              <img
+                src="assets/mchat_logo.png"
+                className="h-40 w-40 shrink-0 object-contain"
+                alt={`${appTitle} icon`}
               />
             </div>
           </BlinkAnimation>
