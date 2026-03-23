@@ -6,6 +6,8 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import translationEn from './en/translation.json';
 import translationAr from './ar/translation.json';
 import translationCa from './ca/translation.json';
+import translationBg from './bg/translation.json';
+import translationBs from './bs/translation.json';
 import translationCs from './cs/translation.json';
 import translationDa from './da/translation.json';
 import translationDe from './de/translation.json';
@@ -20,6 +22,7 @@ import translationPt_PT from './pt-PT/translation.json';
 import translationRu from './ru/translation.json';
 import translationJa from './ja/translation.json';
 import translationKa from './ka/translation.json';
+import translationSr from './sr/translation.json';
 import translationSv from './sv/translation.json';
 import translationKo from './ko/translation.json';
 import translationLt from './lt/translation.json';
@@ -41,7 +44,6 @@ import translationZh_Hant from './zh-Hant/translation.json';
 import translationSk from './sk/translation.json';
 import translationBo from './bo/translation.json';
 import translationUk from './uk/translation.json';
-import translationBs from './bs/translation.json';
 import translationNb from './nb/translation.json';
 import translationSl from './sl/translation.json';
 
@@ -50,6 +52,7 @@ export const defaultNS = 'translation';
 export const resources = {
   en: { translation: translationEn },
   ar: { translation: translationAr },
+  bg: { translation: translationBg },
   bs: { translation: translationBs },
   ca: { translation: translationCa },
   cs: { translation: translationCs },
@@ -67,6 +70,7 @@ export const resources = {
   'pt-BR': { translation: translationPt_BR },
   'pt-PT': { translation: translationPt_PT },
   ru: { translation: translationRu },
+  sr: { translation: translationSr },
   ja: { translation: translationJa },
   ka: { translation: translationKa },
   sv: { translation: translationSv },
