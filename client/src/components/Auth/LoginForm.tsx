@@ -15,6 +15,8 @@ type TLoginFormProps = {
   setError: Pick<TAuthContext, 'setError'>['setError'];
 };
 
+const trimValue = (value?: string) => value?.trim();
+
 const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, setError }) => {
   const localize = useLocalize();
   const { theme } = useContext(ThemeContext);
@@ -59,7 +61,7 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
   };
 
   const handleResendEmail = () => {
-    const email = getValues('email');
+    const email = trimValue(getValues('email'));
     if (!email) {
       return setShowResendLink(false);
     }
@@ -85,7 +87,13 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
         className="mt-6"
         aria-label="Login form"
         method="POST"
-        onSubmit={handleSubmit((data) => onSubmit(data))}
+        onSubmit={handleSubmit((data) =>
+          onSubmit({
+            ...data,
+            email: trimValue(data.email) ?? '',
+            password: trimValue(data.password) ?? '',
+          }),
+        )}
       >
         <div className="mb-4">
           <div className="relative">
@@ -97,6 +105,7 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
               {...register('email', {
                 required: localize('com_auth_email_required'),
                 maxLength: { value: 120, message: localize('com_auth_email_max_length') },
+                setValueAs: trimValue,
                 validate: useUsernameLogin
                   ? undefined
                   : (value) => validateEmail(value, localize('com_auth_email_pattern')),
@@ -125,6 +134,7 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
               aria-label={localize('com_auth_password')}
               {...register('password', {
                 required: localize('com_auth_password_required'),
+                setValueAs: trimValue,
                 minLength: {
                   value: startupConfig?.minPasswordLength || 8,
                   message: localize('com_auth_password_min_length'),
