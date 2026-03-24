@@ -113,6 +113,7 @@ export const LangSelector = ({
     { value: 'pt-PT', label: localize('com_nav_lang_portuguese') },
     { value: 'ru-RU', label: localize('com_nav_lang_russian') },
     { value: 'sk', label: localize('com_nav_lang_slovak') },
+    { value: 'sr', label: localize('com_nav_lang_serbian') },
     { value: 'ja-JP', label: localize('com_nav_lang_japanese') },
     { value: 'ka-GE', label: localize('com_nav_lang_georgian') },
     { value: 'cs-CZ', label: localize('com_nav_lang_czech') },

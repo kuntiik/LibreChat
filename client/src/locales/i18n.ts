@@ -22,6 +22,7 @@ import translationPt_PT from './pt-PT/translation.json';
 import translationRu from './ru/translation.json';
 import translationJa from './ja/translation.json';
 import translationKa from './ka/translation.json';
+import translationSr from './sr/translation.json';
 import translationSv from './sv/translation.json';
 import translationKo from './ko/translation.json';
 import translationLt from './lt/translation.json';
@@ -71,6 +72,7 @@ export const resources = {
   ru: { translation: translationRu },
   ja: { translation: translationJa },
   ka: { translation: translationKa },
+  sr: { translation: translationSr },
   sv: { translation: translationSv },
   ko: { translation: translationKo },
   lt: { translation: translationLt },
