@@ -139,8 +139,8 @@ html {
   --secondary-foreground: 222 23% 14%;
   --muted: 220 20% 95%;
   --muted-foreground: 220 10% 45%;
-  --accent: 185 62% 45%;
-  --accent-foreground: 213 100% 16%;
+  --accent: 214 100% 50%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 4 77% 40%;
   --destructive-foreground: 0 0% 100%;
   --border: 214 32% 91%;
@@ -152,7 +152,7 @@ html {
   --chart-3: 197 37% 24%;
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
-  --interactive-accent: #4a73c7;
+  --interactive-accent: #0070fe;
   --switch-active: var(--interactive-accent);
   --switch-unchecked: 0 0% 58%;
 }
@@ -233,8 +233,8 @@ html {
   --secondary-foreground: 220 12% 91%;
   --muted: 220 51% 17%;
   --muted-foreground: 218 14% 65%;
-  --accent: 185 62% 45%;
-  --accent-foreground: 218 54% 13%;
+  --accent: 214 100% 50%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --border: 211 28% 17%;
@@ -245,7 +245,7 @@ html {
   --chart-3: 30 80% 55%;
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
-  --interactive-accent: #4a73c7;
+  --interactive-accent: #0070fe;
   --switch-active: var(--interactive-accent);
   --switch-unchecked: 0 0% 40%;
 }
