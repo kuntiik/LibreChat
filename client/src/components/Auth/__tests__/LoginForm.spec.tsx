@@ -101,6 +101,7 @@ const setup = ({
 };
 
 beforeEach(() => {
+  mockLogin.mockClear();
   setup();
 });
 
@@ -122,6 +123,21 @@ test('submits login form', async () => {
 
   await userEvent.type(emailInput, 'test@example.com');
   await userEvent.type(passwordInput, 'password');
+  await userEvent.click(submitButton);
+
+  expect(mockLogin).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password' });
+});
+
+test('trims surrounding spaces before submitting login form', async () => {
+  const { getByLabelText } = render(
+    <Login onSubmit={mockLogin} startupConfig={mockStartupConfig} />,
+  );
+  const emailInput = getByLabelText(/email/i);
+  const passwordInput = getByLabelText(/password/i);
+  const submitButton = getByTestId(document.body, 'login-button');
+
+  await userEvent.type(emailInput, '  test@example.com  ');
+  await userEvent.type(passwordInput, '  password  ');
   await userEvent.click(submitButton);
 
   expect(mockLogin).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password' });
