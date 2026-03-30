@@ -445,6 +445,32 @@ describe('Code Process', () => {
         expect(callConfig.httpAgent.keepAlive).toBe(false);
         expect(callConfig.httpsAgent.keepAlive).toBe(false);
       });
+
+      it('should support object-shaped /files responses', async () => {
+        const timestamp = new Date().toISOString();
+        mockAxios.mockResolvedValue({
+          data: {
+            session_id: 'sess',
+            files: [{ id: 'fid', name: 'example.csv', lastModified: timestamp }],
+          },
+        });
+
+        const result = await getSessionInfo('sess/fid', 'api-key');
+        expect(result).toBe(timestamp);
+      });
+
+      it('should treat found files without timestamps as active', async () => {
+        mockAxios.mockResolvedValue({
+          data: {
+            session_id: 'sess',
+            files: [{ fileId: 'fid', name: 'example.csv' }],
+          },
+        });
+
+        const result = await getSessionInfo('sess/fid', 'api-key');
+        expect(typeof result).toBe('string');
+        expect(result.length).toBeGreaterThan(0);
+      });
     });
   });
 });

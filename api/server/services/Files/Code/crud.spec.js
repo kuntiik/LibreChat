@@ -132,6 +132,32 @@ describe('Code CRUD', () => {
       expect(result).toBe('sess-1/fid-1?entity_id=agent-42');
     });
 
+    it('should support snake_case file_id responses', async () => {
+      mockAxios.post.mockResolvedValue({
+        data: {
+          message: 'success',
+          session_id: 'sess-2',
+          files: [{ file_id: 'fid-2', filename: 'data.csv' }],
+        },
+      });
+
+      const result = await uploadCodeEnvFile(baseUploadParams);
+      expect(result).toBe('sess-2/fid-2');
+    });
+
+    it('should support camelCase sessionId responses', async () => {
+      mockAxios.post.mockResolvedValue({
+        data: {
+          message: 'success',
+          sessionId: 'sess-3',
+          files: [{ id: 'fid-3', filename: 'data.csv' }],
+        },
+      });
+
+      const result = await uploadCodeEnvFile(baseUploadParams);
+      expect(result).toBe('sess-3/fid-3');
+    });
+
     it('should throw when server returns non-success message', async () => {
       mockAxios.post.mockResolvedValue({
         data: { message: 'quota_exceeded', session_id: 's', files: [] },

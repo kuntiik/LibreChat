@@ -270,7 +270,13 @@ const processCodeOutput = async ({
 };
 
 function checkIfActive(dateString) {
+  if (!dateString) {
+    return false;
+  }
   const givenDate = new Date(dateString);
+  if (Number.isNaN(givenDate.getTime())) {
+    return true;
+  }
   const currentDate = new Date();
   const timeDifference = currentDate - givenDate;
   const hoursPassed = timeDifference / (1000 * 60 * 60);
@@ -293,6 +299,7 @@ async function getSessionInfo(fileIdentifier, apiKey) {
     const baseURL = getCodeBaseURL();
     const [path, queryString] = fileIdentifier.split('?');
     const session_id = path.split('/')[0];
+    const id = path.split('/')[1];
 
     let queryParams = {};
     if (queryString) {
@@ -315,7 +322,61 @@ async function getSessionInfo(fileIdentifier, apiKey) {
       timeout: 5000,
     });
 
-    return response.data.find((file) => file.name.startsWith(path))?.lastModified;
+    const fileList = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray(response.data?.files)
+        ? response.data.files
+        : [];
+
+    if (fileList.length === 0) {
+      return null;
+    }
+
+    const targetFile = fileList.find((file) => {
+      if (!file || typeof file !== 'object') {
+        return false;
+      }
+
+      const name = typeof file.name === 'string' ? file.name : '';
+      const filename = typeof file.filename === 'string' ? file.filename : '';
+      const filePath = typeof file.path === 'string' ? file.path : '';
+      const fileId = typeof file.fileId === 'string' ? file.fileId : '';
+      const file_id = typeof file.file_id === 'string' ? file.file_id : '';
+      const rawId = typeof file.id === 'string' ? file.id : '';
+
+      if (name && name.startsWith(path)) {
+        return true;
+      }
+
+      if (id && (fileId === id || file_id === id || rawId === id)) {
+        return true;
+      }
+
+      if (!id && (name || filename || filePath)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (!targetFile) {
+      return null;
+    }
+
+    const timestampFields = [
+      targetFile.lastModified,
+      targetFile.last_modified,
+      targetFile.updatedAt,
+      targetFile.updated_at,
+    ];
+
+    for (const ts of timestampFields) {
+      if (typeof ts === 'string' && ts.length > 0) {
+        return ts;
+      }
+    }
+
+    return new Date().toISOString();
   } catch (error) {
     logAxiosError({
       message: `Error fetching session info: ${error.message}`,
@@ -372,10 +433,10 @@ const primeFiles = async (options, apiKey) => {
     }
 
     if (file.metadata.fileIdentifier) {
-      const [path, queryString] = file.metadata.fileIdentifier.split('?');
-      const [session_id, id] = path.split('/');
+      const [filePath, queryString] = file.metadata.fileIdentifier.split('?');
+      const [session_id, id] = filePath.split('/');
 
-      const pushFile = () => {
+      const pushFile = (resolvedSessionId = session_id, resolvedId = id) => {
         if (!toolContext) {
           toolContext = `- Note: The following files are available in the "${Tools.execute_code}" tool environment:`;
         }
@@ -390,13 +451,14 @@ const primeFiles = async (options, apiKey) => {
 
         toolContext += `\n\t- /mnt/data/${file.filename}${fileSuffix}`;
         files.push({
-          id,
-          session_id,
+          id: resolvedId,
+          session_id: resolvedSessionId,
           name: file.filename,
         });
       };
 
-      if (sessions.has(session_id)) {
+      const knownSessionState = sessions.get(session_id);
+      if (knownSessionState === true) {
         pushFile();
         continue;
       }
@@ -431,8 +493,9 @@ const primeFiles = async (options, apiKey) => {
             file_id: file.file_id,
             metadata: updatedMetadata,
           });
-          sessions.set(session_id, true);
-          pushFile();
+          const [newPath] = fileIdentifier.split('?');
+          const [resolvedSessionId, resolvedFileId] = newPath.split('/');
+          pushFile(resolvedSessionId ?? session_id, resolvedFileId ?? id);
         } catch (error) {
           logger.error(
             `Error re-uploading file ${id} in session ${session_id}: ${error.message}`,
@@ -440,17 +503,22 @@ const primeFiles = async (options, apiKey) => {
           );
         }
       };
+
+      if (knownSessionState === false) {
+        await reuploadFile();
+        continue;
+      }
+
       const uploadTime = await getSessionInfo(file.metadata.fileIdentifier, apiKey);
-      if (!uploadTime) {
-        logger.warn(`Failed to get upload time for file ${id} in session ${session_id}`);
+      const sessionIsActive = checkIfActive(uploadTime);
+      sessions.set(session_id, sessionIsActive);
+
+      if (!sessionIsActive) {
+        logger.warn(`Session check failed for file ${id} in session ${session_id}, re-uploading`);
         await reuploadFile();
         continue;
       }
-      if (!checkIfActive(uploadTime)) {
-        await reuploadFile();
-        continue;
-      }
-      sessions.set(session_id, true);
+
       pushFile();
     }
   }
