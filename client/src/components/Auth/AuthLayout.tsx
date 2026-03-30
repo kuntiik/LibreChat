@@ -25,7 +25,7 @@ function AuthLayout({
   error: TranslationKeys | null;
 }) {
   const localize = useLocalize();
-  const appTitle = startupConfig?.appTitle ?? 'Mattoni 1873 - M Chat';
+  const appTitle = startupConfig?.appTitle ?? 'Mattoni 1873 - M chat';
 
   const hasStartupConfigError = startupConfigError !== null && startupConfigError !== undefined;
   const DisplayError = () => {

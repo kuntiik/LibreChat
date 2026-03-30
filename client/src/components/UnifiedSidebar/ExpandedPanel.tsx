@@ -40,12 +40,10 @@ const NewChatButton = memo(function NewChatButton() {
           href="/c/new"
           data-testid="new-chat-button"
           aria-label={localize('com_ui_new_chat')}
-          className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-surface-hover"
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-transparent bg-[#d1d6dc] text-[var(--brand-primary)] duration-0 hover:bg-[#c7ccd3] active:bg-[#b9c0c9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-sidebar)]"
           onClick={handleClick}
         >
-          <div className="flex size-6 items-center justify-center rounded-full bg-text-primary">
-            <NewChatIcon className="size-3.5 text-white dark:text-black" />
-          </div>
+          <NewChatIcon className="size-5 !text-[var(--brand-primary-active)] dark:!text-[var(--brand-primary-active)]" />
         </a>
       }
     />

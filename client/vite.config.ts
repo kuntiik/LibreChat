@@ -87,11 +87,11 @@ export default defineConfig(({ command }) => ({
       },
       includeAssets: [],
       manifest: {
-        name: 'LibreChat',
-        short_name: 'LibreChat',
+        name: 'Mattoni 1873 - M chat',
+        short_name: 'M chat',
         display: 'standalone',
-        background_color: '#000000',
-        theme_color: '#009688',
+        background_color: '#f7f8fa',
+        theme_color: '#002554',
         icons: [
           {
             src: 'assets/favicon/favicon-32x32.png',
