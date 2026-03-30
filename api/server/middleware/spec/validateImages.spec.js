@@ -57,6 +57,18 @@ describe('validateImageRequest middleware', () => {
       validateImageRequest = createValidateImageRequest(true);
     });
 
+    test('should use the last duplicate refreshToken cookie value', async () => {
+      const validToken = jwt.sign(
+        { id: validObjectId, exp: Math.floor(Date.now() / 1000) + 3600 },
+        process.env.JWT_REFRESH_SECRET,
+      );
+      req.headers.cookie = `refreshToken=invalid-token; refreshToken=${validToken}`;
+      req.originalUrl = `/images/${validObjectId}/example.jpg`;
+
+      await validateImageRequest(req, res, next);
+      expect(next).toHaveBeenCalled();
+    });
+
     test('should return 401 if refresh token is not provided', async () => {
       await validateImageRequest(req, res, next);
       expect(res.status).toHaveBeenCalledWith(401);
@@ -175,6 +187,18 @@ describe('validateImageRequest middleware', () => {
       );
       req.headers.cookie = `refreshToken=dummy-token; token_provider=openid; openid_user_id=${signedUserId}`;
       req.originalUrl = `/images/${validObjectId}/example.jpg`;
+      await validateImageRequest(req, res, next);
+      expect(next).toHaveBeenCalled();
+    });
+
+    test('should use the last duplicate token_provider value', async () => {
+      const signedUserId = jwt.sign(
+        { id: validObjectId, exp: Math.floor(Date.now() / 1000) + 3600 },
+        process.env.JWT_REFRESH_SECRET,
+      );
+      req.headers.cookie = `token_provider=librechat; token_provider=openid; refreshToken=invalid-token; openid_user_id=${signedUserId}`;
+      req.originalUrl = `/images/${validObjectId}/example.jpg`;
+
       await validateImageRequest(req, res, next);
       expect(next).toHaveBeenCalled();
     });

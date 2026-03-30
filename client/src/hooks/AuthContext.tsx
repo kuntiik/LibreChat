@@ -38,6 +38,7 @@ const AuthContextProvider = ({
   const [error, setError] = useState<string | undefined>(undefined);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const logoutRedirectRef = useRef<string | undefined>(undefined);
+  const authFlowVersionRef = useRef(0);
 
   const { data: userRole = null } = useGetRole(SystemRoles.USER, {
     enabled: !!(isAuthenticated && (user?.role ?? '')),
@@ -117,6 +118,7 @@ const AuthContextProvider = ({
 
   const logout = useCallback(
     (redirect?: string) => {
+      authFlowVersionRef.current += 1;
       if (redirect) {
         logoutRedirectRef.current = redirect;
       }
@@ -128,16 +130,22 @@ const AuthContextProvider = ({
   const userQuery = useGetUserQuery({ enabled: !!(token ?? '') });
 
   const login = (data: t.TLoginUser) => {
+    authFlowVersionRef.current += 1;
     loginUser.mutate(data);
   };
 
   const silentRefresh = useCallback(() => {
+    const refreshVersion = authFlowVersionRef.current;
     if (authConfig?.test === true) {
       console.log('Test mode. Skipping silent refresh.');
       return;
     }
     refreshToken.mutate(undefined, {
       onSuccess: (data: t.TRefreshTokenResponse | undefined) => {
+        if (refreshVersion !== authFlowVersionRef.current) {
+          console.log('Ignoring stale silent refresh response.');
+          return;
+        }
         const { user, token = '' } = data ?? {};
         if (token) {
           setUserContext({ token, isAuthenticated: true, user });
@@ -150,6 +158,10 @@ const AuthContextProvider = ({
         }
       },
       onError: (error) => {
+        if (refreshVersion !== authFlowVersionRef.current) {
+          console.log('Ignoring stale silent refresh error.');
+          return;
+        }
         console.log('refreshToken mutation error:', error);
         if (authConfig?.test === true) {
           return;

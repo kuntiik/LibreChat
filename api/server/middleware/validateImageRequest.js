@@ -1,7 +1,7 @@
-const cookies = require('cookie');
 const jwt = require('jsonwebtoken');
 const { logger } = require('@librechat/data-schemas');
 const { isEnabled, getBasePath } = require('@librechat/api');
+const { parseCookiesWithLastValue } = require('~/server/utils/cookies');
 
 const OBJECT_ID_LENGTH = 24;
 const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/i;
@@ -67,7 +67,7 @@ function createValidateImageRequest(secureImageLinks) {
         return res.status(401).send('Unauthorized');
       }
 
-      const parsedCookies = cookies.parse(cookieHeader);
+      const parsedCookies = parseCookiesWithLastValue(cookieHeader);
       const tokenProvider = parsedCookies.token_provider;
       let userIdForPath;
 

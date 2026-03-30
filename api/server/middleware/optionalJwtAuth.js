@@ -1,12 +1,12 @@
-const cookies = require('cookie');
 const passport = require('passport');
 const { isEnabled } = require('@librechat/api');
+const { parseCookiesWithLastValue } = require('~/server/utils/cookies');
 
 // This middleware does not require authentication,
 // but if the user is authenticated, it will set the user object.
 const optionalJwtAuth = (req, res, next) => {
   const cookieHeader = req.headers.cookie;
-  const tokenProvider = cookieHeader ? cookies.parse(cookieHeader).token_provider : null;
+  const tokenProvider = parseCookiesWithLastValue(cookieHeader).token_provider;
   const callback = (err, user) => {
     if (err) {
       return next(err);

@@ -1,4 +1,3 @@
-const cookies = require('cookie');
 const jwt = require('jsonwebtoken');
 const openIdClient = require('openid-client');
 const { logger } = require('@librechat/data-schemas');
@@ -20,6 +19,7 @@ const {
 const { getGraphApiToken } = require('~/server/services/GraphTokenService');
 const { getOAuthReconnectionManager } = require('~/config');
 const { getOpenIdConfig } = require('~/strategies');
+const { parseCookiesWithLastValue } = require('~/server/utils/cookies');
 
 const registrationController = async (req, res) => {
   try {
@@ -66,7 +66,7 @@ const resetPasswordController = async (req, res) => {
 };
 
 const refreshController = async (req, res) => {
-  const parsedCookies = req.headers.cookie ? cookies.parse(req.headers.cookie) : {};
+  const parsedCookies = parseCookiesWithLastValue(req.headers.cookie);
   const token_provider = parsedCookies.token_provider;
 
   if (token_provider === 'openid' && isEnabled(process.env.OPENID_REUSE_TOKENS)) {

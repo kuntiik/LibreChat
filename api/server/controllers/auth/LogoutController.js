@@ -1,11 +1,20 @@
-const cookies = require('cookie');
 const { isEnabled } = require('@librechat/api');
 const { logger } = require('@librechat/data-schemas');
 const { logoutUser } = require('~/server/services/AuthService');
 const { getOpenIdConfig } = require('~/strategies');
+const { parseCookiesWithLastValue } = require('~/server/utils/cookies');
+
+const AUTH_COOKIE_NAMES = [
+  'refreshToken',
+  'openid_access_token',
+  'openid_id_token',
+  'openid_user_id',
+  'token_provider',
+];
+const AUTH_COOKIE_PATHS = ['/', '/api', '/api/auth'];
 
 const logoutController = async (req, res) => {
-  const parsedCookies = req.headers.cookie ? cookies.parse(req.headers.cookie) : {};
+  const parsedCookies = parseCookiesWithLastValue(req.headers.cookie);
   const isOpenIdUser = req.user?.openidId != null && req.user?.provider === 'openid';
 
   /** For OpenID users, read refresh token from session; for others, use cookie */
@@ -20,11 +29,11 @@ const logoutController = async (req, res) => {
     const logout = await logoutUser(req, refreshToken);
     const { status, message } = logout;
 
-    res.clearCookie('refreshToken');
-    res.clearCookie('openid_access_token');
-    res.clearCookie('openid_id_token');
-    res.clearCookie('openid_user_id');
-    res.clearCookie('token_provider');
+    for (const cookieName of AUTH_COOKIE_NAMES) {
+      for (const path of AUTH_COOKIE_PATHS) {
+        res.clearCookie(cookieName, { path });
+      }
+    }
     const response = { message };
     if (
       isOpenIdUser &&

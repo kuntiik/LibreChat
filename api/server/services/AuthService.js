@@ -39,6 +39,35 @@ const domains = {
   server: process.env.DOMAIN_SERVER,
 };
 
+const AUTH_COOKIE_PATH = '/';
+const LEGACY_AUTH_COOKIE_PATHS = ['/api', '/api/auth'];
+
+/**
+ * Clears known legacy cookie paths so old duplicate cookies cannot shadow new values.
+ * @param {import('express').Response} res
+ * @param {string[]} cookieNames
+ */
+const clearLegacyAuthCookies = (res, cookieNames) => {
+  for (const cookieName of cookieNames) {
+    for (const path of LEGACY_AUTH_COOKIE_PATHS) {
+      res.clearCookie(cookieName, { path });
+    }
+  }
+};
+
+/**
+ * Builds consistent auth cookie options.
+ * @param {Date} expires
+ * @returns {import('express').CookieOptions}
+ */
+const getAuthCookieOptions = (expires) => ({
+  expires,
+  path: AUTH_COOKIE_PATH,
+  httpOnly: true,
+  secure: shouldUseSecureCookie(),
+  sameSite: 'strict',
+});
+
 const genericVerificationMessage = 'Please check your email to verify your email address.';
 
 /**
@@ -393,19 +422,12 @@ const setAuthTokens = async (userId, res, _session = null) => {
     const user = await getUserById(userId);
     const sessionExpiry = math(process.env.SESSION_EXPIRY, DEFAULT_SESSION_EXPIRY);
     const token = await generateToken(user, sessionExpiry);
+    const cookieExpiry = new Date(refreshTokenExpires);
 
-    res.cookie('refreshToken', refreshToken, {
-      expires: new Date(refreshTokenExpires),
-      httpOnly: true,
-      secure: shouldUseSecureCookie(),
-      sameSite: 'strict',
-    });
-    res.cookie('token_provider', 'librechat', {
-      expires: new Date(refreshTokenExpires),
-      httpOnly: true,
-      secure: shouldUseSecureCookie(),
-      sameSite: 'strict',
-    });
+    clearLegacyAuthCookies(res, ['refreshToken', 'token_provider']);
+
+    res.cookie('refreshToken', refreshToken, getAuthCookieOptions(cookieExpiry));
+    res.cookie('token_provider', 'librechat', getAuthCookieOptions(cookieExpiry));
     return token;
   } catch (error) {
     logger.error('[setAuthTokens] Error in setting authentication tokens:', error);
@@ -437,6 +459,13 @@ const setOpenIDAuthTokens = (tokenset, req, res, userId, existingRefreshToken) =
       DEFAULT_REFRESH_TOKEN_EXPIRY,
     );
     const expirationDate = new Date(Date.now() + expiryInMilliseconds);
+    clearLegacyAuthCookies(res, [
+      'refreshToken',
+      'openid_access_token',
+      'openid_id_token',
+      'openid_user_id',
+      'token_provider',
+    ]);
     if (tokenset == null) {
       logger.error('[setOpenIDAuthTokens] No tokenset found in request');
       return;
@@ -472,46 +501,21 @@ const setOpenIDAuthTokens = (tokenset, req, res, userId, existingRefreshToken) =
       };
     } else {
       logger.warn('[setOpenIDAuthTokens] No session available, falling back to cookies');
-      res.cookie('refreshToken', refreshToken, {
-        expires: expirationDate,
-        httpOnly: true,
-        secure: shouldUseSecureCookie(),
-        sameSite: 'strict',
-      });
-      res.cookie('openid_access_token', tokenset.access_token, {
-        expires: expirationDate,
-        httpOnly: true,
-        secure: shouldUseSecureCookie(),
-        sameSite: 'strict',
-      });
+      res.cookie('refreshToken', refreshToken, getAuthCookieOptions(expirationDate));
+      res.cookie('openid_access_token', tokenset.access_token, getAuthCookieOptions(expirationDate));
       if (tokenset.id_token) {
-        res.cookie('openid_id_token', tokenset.id_token, {
-          expires: expirationDate,
-          httpOnly: true,
-          secure: shouldUseSecureCookie(),
-          sameSite: 'strict',
-        });
+        res.cookie('openid_id_token', tokenset.id_token, getAuthCookieOptions(expirationDate));
       }
     }
 
     /** Small cookie to indicate token provider (required for auth middleware) */
-    res.cookie('token_provider', 'openid', {
-      expires: expirationDate,
-      httpOnly: true,
-      secure: shouldUseSecureCookie(),
-      sameSite: 'strict',
-    });
+    res.cookie('token_provider', 'openid', getAuthCookieOptions(expirationDate));
     if (userId && isEnabled(process.env.OPENID_REUSE_TOKENS)) {
       /** JWT-signed user ID cookie for image path validation when OPENID_REUSE_TOKENS is enabled */
       const signedUserId = jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, {
         expiresIn: expiryInMilliseconds / 1000,
       });
-      res.cookie('openid_user_id', signedUserId, {
-        expires: expirationDate,
-        httpOnly: true,
-        secure: shouldUseSecureCookie(),
-        sameSite: 'strict',
-      });
+      res.cookie('openid_user_id', signedUserId, getAuthCookieOptions(expirationDate));
     }
     return appAuthToken;
   } catch (error) {
