@@ -140,7 +140,7 @@ router.post('/oauth/exchange', middleware.loginLimiter, async (req, res) => {
  *   "users": [{ "email": "user@example.com", "name": "User Name", "username": "user" }]
  * }
  */
-router.post('/users/bulk-create', middleware.requireJwtAuth, requireAdmin, async (req, res) => {
+router.post('/users/bulk-create', middleware.requireJwtAuth, requireAdminAccess, async (req, res) => {
   try {
     const result = await bulkCreateUsers(req.body ?? {});
     return res.status(200).json(result);
