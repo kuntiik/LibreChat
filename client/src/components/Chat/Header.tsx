@@ -1,24 +1,23 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
+import { useRecoilValue } from 'recoil';
 import { useMediaQuery } from '@librechat/client';
-import { useOutletContext } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { getConfigDefaults, PermissionTypes, Permissions } from 'librechat-data-provider';
-import type { ContextType } from '~/common';
-import { PresetsMenu, HeaderNewChat, OpenSidebar } from './Menus';
 import ModelSelector from './Menus/Endpoints/ModelSelector';
 import { useGetStartupConfig } from '~/data-provider';
 import ExportAndShareMenu from './ExportAndShareMenu';
+import { OpenSidebar, PresetsMenu } from './Menus';
 import BookmarkMenu from './Menus/BookmarkMenu';
 import { TemporaryChat } from './TemporaryChat';
 import AddMultiConvo from './AddMultiConvo';
 import { useHasAccess } from '~/hooks';
 import { cn } from '~/utils';
+import store from '~/store';
 
 const defaultInterface = getConfigDefaults().interface;
 
-export default function Header() {
+function Header() {
   const { data: startupConfig } = useGetStartupConfig();
-  const { navVisible, setNavVisible } = useOutletContext<ContextType>();
+  const navVisible = useRecoilValue(store.sidebarExpanded);
 
   const interfaceConfig = useMemo(
     () => startupConfig?.interface ?? defaultInterface,
@@ -32,6 +31,11 @@ export default function Header() {
 
   const hasAccessToMultiConvo = useHasAccess({
     permissionType: PermissionTypes.MULTI_CONVO,
+    permission: Permissions.USE,
+  });
+
+  const hasAccessToTemporaryChat = useHasAccess({
+    permissionType: PermissionTypes.TEMPORARY_CHAT,
     permission: Permissions.USE,
   });
 
@@ -59,9 +63,8 @@ export default function Header() {
           {!(navVisible && isSmallScreen) && (
             <div
               className={cn(
-                'flex items-center gap-2',
+                'flex items-center gap-2 pl-2',
                 !isSmallScreen ? 'transition-all duration-200 ease-in-out' : '',
-                !navVisible && !isSmallScreen ? 'pl-2' : '',
               )}
             >
               <ModelSelector startupConfig={startupConfig} />
@@ -73,7 +76,7 @@ export default function Header() {
                   <ExportAndShareMenu
                     isSharedButtonEnabled={startupConfig?.sharedLinksEnabled ?? false}
                   />
-                  <TemporaryChat />
+                  {hasAccessToTemporaryChat === true && <TemporaryChat />}
                 </>
               )}
             </div>
@@ -85,7 +88,7 @@ export default function Header() {
             <ExportAndShareMenu
               isSharedButtonEnabled={startupConfig?.sharedLinksEnabled ?? false}
             />
-            <TemporaryChat />
+            {hasAccessToTemporaryChat === true && <TemporaryChat />}
           </div>
         )}
       </div>
@@ -94,3 +97,8 @@ export default function Header() {
     </div>
   );
 }
+
+const MemoizedHeader = memo(Header);
+MemoizedHeader.displayName = 'Header';
+
+export default MemoizedHeader;

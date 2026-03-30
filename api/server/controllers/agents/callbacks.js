@@ -1,22 +1,19 @@
 const { nanoid } = require('nanoid');
-const { Constants } = require('@librechat/agents');
 const { logger } = require('@librechat/data-schemas');
+const { Tools, StepTypes, FileContext, ErrorTypes } = require('librechat-data-provider');
+const {
+  EnvVar,
+  Constants,
+  GraphEvents,
+  GraphNodeKeys,
+  ToolEndHandler,
+} = require('@librechat/agents');
 const {
   sendEvent,
   GenerationJobManager,
   writeAttachmentEvent,
   createToolExecuteHandler,
 } = require('@librechat/api');
-const { Tools, StepTypes, FileContext, ErrorTypes } = require('librechat-data-provider');
-const {
-  EnvVar,
-  Providers,
-  GraphEvents,
-  getMessageId,
-  ToolEndHandler,
-  handleToolCalls,
-  ChatModelStreamHandler,
-} = require('@librechat/agents');
 const { processFileCitations } = require('~/server/services/Files/Citations');
 const { processCodeOutput } = require('~/server/services/Files/Code/process');
 const { loadAuthValues } = require('~/server/services/Tools/credentials');
@@ -57,8 +54,6 @@ class ModelEndHandler {
     let errorMessage;
     try {
       const agentContext = graph.getAgentContext(metadata);
-      const isGoogle = agentContext.provider === Providers.GOOGLE;
-      const streamingDisabled = !!agentContext.clientOptions?.disableStreaming;
       if (data?.output?.additional_kwargs?.stop_reason === 'refusal') {
         const info = { ...data.output.additional_kwargs };
         errorMessage = JSON.stringify({
@@ -73,21 +68,6 @@ class ModelEndHandler {
         });
       }
 
-      const toolCalls = data?.output?.tool_calls;
-      let hasUnprocessedToolCalls = false;
-      if (Array.isArray(toolCalls) && toolCalls.length > 0 && graph?.toolCallStepIds?.has) {
-        try {
-          hasUnprocessedToolCalls = toolCalls.some(
-            (tc) => tc?.id && !graph.toolCallStepIds.has(tc.id),
-          );
-        } catch {
-          hasUnprocessedToolCalls = false;
-        }
-      }
-      if (isGoogle || streamingDisabled || hasUnprocessedToolCalls) {
-        await handleToolCalls(toolCalls, metadata, graph);
-      }
-
       const usage = data?.output?.usage_metadata;
       if (!usage) {
         return this.finalize(errorMessage);
@@ -97,39 +77,9 @@ class ModelEndHandler {
         usage.model = modelName;
       }
 
-      this.collectedUsage.push(usage);
-      if (!streamingDisabled) {
-        return this.finalize(errorMessage);
-      }
-      if (!data.output.content) {
-        return this.finalize(errorMessage);
-      }
-      const stepKey = graph.getStepKey(metadata);
-      const message_id = getMessageId(stepKey, graph) ?? '';
-      if (message_id) {
-        await graph.dispatchRunStep(stepKey, {
-          type: StepTypes.MESSAGE_CREATION,
-          message_creation: {
-            message_id,
-          },
-        });
-      }
-      const stepId = graph.getStepIdByKey(stepKey);
-      const content = data.output.content;
-      if (typeof content === 'string') {
-        await graph.dispatchMessageDelta(stepId, {
-          content: [
-            {
-              type: 'text',
-              text: content,
-            },
-          ],
-        });
-      } else if (content.every((c) => c.type?.startsWith('text'))) {
-        await graph.dispatchMessageDelta(stepId, {
-          content,
-        });
-      }
+      const taggedUsage = markSummarizationUsage(usage, metadata);
+
+      this.collectedUsage.push(taggedUsage);
     } catch (error) {
       logger.error('Error handling model end event:', error);
       return this.finalize(errorMessage);
@@ -191,6 +141,7 @@ function getDefaultHandlers({
   collectedUsage,
   streamId = null,
   toolExecuteOptions = null,
+  summarizationOptions = null,
 }) {
   if (!res || !aggregateContent) {
     throw new Error(
@@ -200,7 +151,6 @@ function getDefaultHandlers({
   const handlers = {
     [GraphEvents.CHAT_MODEL_END]: new ModelEndHandler(collectedUsage),
     [GraphEvents.TOOL_END]: new ToolEndHandler(toolEndCallback, logger),
-    [GraphEvents.CHAT_MODEL_STREAM]: new ChatModelStreamHandler(),
     [GraphEvents.ON_RUN_STEP]: {
       /**
        * Handle ON_RUN_STEP event.
@@ -303,6 +253,37 @@ function getDefaultHandlers({
   if (toolExecuteOptions) {
     handlers[GraphEvents.ON_TOOL_EXECUTE] = createToolExecuteHandler(toolExecuteOptions);
   }
+
+  if (summarizationOptions?.enabled !== false) {
+    handlers[GraphEvents.ON_SUMMARIZE_START] = {
+      handle: async (_event, data) => {
+        await emitEvent(res, streamId, {
+          event: GraphEvents.ON_SUMMARIZE_START,
+          data,
+        });
+      },
+    };
+    handlers[GraphEvents.ON_SUMMARIZE_DELTA] = {
+      handle: async (_event, data) => {
+        aggregateContent({ event: GraphEvents.ON_SUMMARIZE_DELTA, data });
+        await emitEvent(res, streamId, {
+          event: GraphEvents.ON_SUMMARIZE_DELTA,
+          data,
+        });
+      },
+    };
+    handlers[GraphEvents.ON_SUMMARIZE_COMPLETE] = {
+      handle: async (_event, data) => {
+        aggregateContent({ event: GraphEvents.ON_SUMMARIZE_COMPLETE, data });
+        await emitEvent(res, streamId, {
+          event: GraphEvents.ON_SUMMARIZE_COMPLETE,
+          data,
+        });
+      },
+    };
+  }
+
+  handlers[GraphEvents.ON_AGENT_LOG] = { handle: agentLogHandler };
 
   return handlers;
 }
@@ -727,8 +708,62 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
   };
 }
 
+const ALLOWED_LOG_LEVELS = new Set(['debug', 'info', 'warn', 'error']);
+
+function agentLogHandler(_event, data) {
+  if (!data) {
+    return;
+  }
+  const logFn = ALLOWED_LOG_LEVELS.has(data.level) ? logger[data.level] : logger.debug;
+  const meta = typeof data.data === 'object' && data.data != null ? data.data : {};
+  logFn(`[agents:${data.scope ?? 'unknown'}] ${data.message ?? ''}`, {
+    ...meta,
+    runId: data.runId,
+    agentId: data.agentId,
+  });
+}
+
+function markSummarizationUsage(usage, metadata) {
+  const node = metadata?.langgraph_node;
+  if (typeof node === 'string' && node.startsWith(GraphNodeKeys.SUMMARIZE)) {
+    return { ...usage, usage_type: 'summarization' };
+  }
+  return usage;
+}
+
+const agentLogHandlerObj = { handle: agentLogHandler };
+
+/**
+ * Builds the three summarization SSE event handlers.
+ * In streaming mode, each event is forwarded to the client via `res.write`.
+ * In non-streaming mode, the handlers are no-ops.
+ * @param {{ isStreaming: boolean, res: import('express').Response }} opts
+ */
+function buildSummarizationHandlers({ isStreaming, res }) {
+  if (!isStreaming) {
+    const noop = { handle: () => {} };
+    return { on_summarize_start: noop, on_summarize_delta: noop, on_summarize_complete: noop };
+  }
+  const writeEvent = (name) => ({
+    handle: async (_event, data) => {
+      if (!res.writableEnded) {
+        res.write(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`);
+      }
+    },
+  });
+  return {
+    on_summarize_start: writeEvent('on_summarize_start'),
+    on_summarize_delta: writeEvent('on_summarize_delta'),
+    on_summarize_complete: writeEvent('on_summarize_complete'),
+  };
+}
+
 module.exports = {
+  agentLogHandler,
+  agentLogHandlerObj,
   getDefaultHandlers,
   createToolEndCallback,
+  markSummarizationUsage,
+  buildSummarizationHandlers,
   createResponsesToolEndCallback,
 };
