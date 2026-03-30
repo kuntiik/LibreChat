@@ -127,7 +127,7 @@ const ConversationsSection = memo(() => {
           role="button"
           tabIndex={0}
           aria-label={localize('com_ui_new_chat')}
-          className="flex w-full cursor-pointer items-center rounded-lg px-2.5 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white"
+          className="flex w-full cursor-pointer items-center rounded-lg px-2.5 py-2 text-sm text-text-secondary outline-none hover:bg-surface-hover hover:text-[var(--brand-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--border-focus)]"
           onClick={() => {
             clearMessagesCache(queryClient, conversation?.conversationId);
             queryClient.invalidateQueries([QueryKeys.messages]);

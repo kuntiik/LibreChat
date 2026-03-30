@@ -9,13 +9,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-primary text-primary-foreground hover:bg-[var(--interactive-accent)]',
+          'bg-primary text-primary-foreground hover:bg-brand-primary-hover',
         destructive:
           'bg-surface-destructive text-destructive-foreground hover:bg-surface-destructive-hover',
         outline:
-          'text-text-primary border border-border-light bg-transparent hover:bg-accent hover:text-accent-foreground',
+          'text-text-primary border border-border-light bg-transparent hover:bg-surface-hover hover:text-[var(--brand-primary)]',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-surface-hover hover:text-text-primary',
+        ghost: 'hover:bg-surface-hover hover:text-[var(--brand-primary)]',
         link: 'text-primary underline-offset-4 hover:underline',
         // hardcoded text color because of WCAG contrast issues (text-white)
         submit: 'bg-surface-submit text-white hover:bg-surface-submit-hover',

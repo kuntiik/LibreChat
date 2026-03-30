@@ -92,8 +92,10 @@ const NavIconButton = memo(function NavIconButton({
           aria-label={localize(link.title)}
           aria-pressed={isActive}
           className={cn(
-            'h-9 w-9 rounded-lg',
-            isActive ? 'bg-surface-active-alt text-text-primary' : 'text-text-secondary',
+            'h-9 w-9 rounded-lg transition-colors',
+            isActive
+              ? 'bg-surface-active-alt text-[var(--brand-primary)]'
+              : 'text-text-secondary hover:bg-surface-hover hover:text-[var(--brand-primary)]',
           )}
           onClick={handleClick}
         >
@@ -135,10 +137,10 @@ function ExpandedPanel({
             variant="ghost"
             aria-label={localize(toggleLabel)}
             aria-expanded={expanded}
-            className="h-9 w-9 rounded-lg"
+            className="h-9 w-9 rounded-lg text-text-secondary hover:bg-surface-hover hover:text-[var(--brand-primary)]"
             onClick={toggleClick}
           >
-            <Sidebar aria-hidden="true" className="h-5 w-5 text-text-primary" />
+            <Sidebar aria-hidden="true" className="h-5 w-5 text-current" />
           </Button>
         }
       />

@@ -139,8 +139,8 @@ html {
   --secondary-foreground: 222 23% 14%;
   --muted: 220 20% 95%;
   --muted-foreground: 220 10% 45%;
-  --accent: 214 100% 50%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 210 16% 84%;
+  --accent-foreground: 213 100% 16%;
   --destructive: 4 77% 40%;
   --destructive-foreground: 0 0% 100%;
   --border: 214 32% 91%;
@@ -233,8 +233,8 @@ html {
   --secondary-foreground: 220 12% 91%;
   --muted: 220 51% 17%;
   --muted-foreground: 218 14% 65%;
-  --accent: 214 100% 50%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 210 16% 84%;
+  --accent-foreground: 213 100% 16%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --border: 211 28% 17%;
@@ -374,10 +374,10 @@ html {
 
 .sidebar-theme {
   --surface-primary-alt: var(--surface-sidebar);
-  --surface-active: var(--surface-sidebar-hover);
-  --surface-active-alt: var(--surface-sidebar-hover);
-  --surface-hover: var(--surface-sidebar-hover);
-  --surface-hover-alt: var(--brand-primary-active);
+  --surface-active: #d1d6dc;
+  --surface-active-alt: #d1d6dc;
+  --surface-hover: #d1d6dc;
+  --surface-hover-alt: #d1d6dc;
   --ring-primary: var(--border-focus);
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.82);
@@ -385,7 +385,7 @@ html {
   --text-tertiary: rgba(255, 255, 255, 0.72);
   background-color: var(--surface-sidebar);
   color: #ffffff;
-  border-right: 1px solid var(--border-default);
+  border-right: 1px solid var(--surface-sidebar);
 }
 
 .sidebar-theme a {
@@ -407,6 +407,18 @@ html {
   color: var(--brand-primary) !important;
 }
 
+.sidebar-theme input,
+.sidebar-theme textarea,
+.sidebar-theme select {
+  color: var(--brand-primary) !important;
+  caret-color: var(--brand-primary);
+}
+
+.sidebar-theme input::placeholder,
+.sidebar-theme textarea::placeholder {
+  color: rgba(0, 37, 84, 0.72) !important;
+}
+
 .account-settings-popover {
   background-color: var(--surface-sidebar) !important;
   border-color: var(--surface-sidebar-hover) !important;
@@ -423,8 +435,8 @@ html {
 
 .account-settings-popover .select-item[data-active-item],
 .account-settings-popover .select-item:hover {
-  background-color: var(--surface-sidebar-hover);
-  color: #ffffff;
+  background-color: #d1d6dc;
+  color: var(--brand-primary);
 }
 
 .account-settings-popover .select-item[data-active-item] {
