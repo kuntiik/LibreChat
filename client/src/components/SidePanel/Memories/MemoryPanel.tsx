@@ -173,7 +173,7 @@ export default function MemoryPanel() {
               <Button
                 size="sm"
                 variant="outline"
-                className={`ml-auto ${referenceSavedMemories ? 'bg-surface-hover hover:bg-surface-hover' : ''}`}
+                className="ml-auto"
                 onClick={() => handleMemoryToggle(!referenceSavedMemories)}
                 aria-label={localize('com_ui_use_memory')}
                 aria-pressed={referenceSavedMemories}
@@ -183,7 +183,7 @@ export default function MemoryPanel() {
                   checked={referenceSavedMemories}
                   tabIndex={-1}
                   aria-hidden="true"
-                  className="pointer-events-none mr-2"
+                  className="pointer-events-none mr-2 data-[state=checked]:border-border-xheavy data-[state=checked]:bg-transparent data-[state=checked]:text-current"
                 />
                 {localize('com_ui_use_memory')}
               </Button>

@@ -262,6 +262,10 @@ export default function Conversation({
               endpointsConfig={endpointsConfig}
               size={20}
               context="menu-item"
+              className={cn(
+                'mr-0',
+                isActiveConvo || isPopoverActive ? '!text-[var(--brand-primary)]' : '',
+              )}
             />
           )}
         </ConvoLink>

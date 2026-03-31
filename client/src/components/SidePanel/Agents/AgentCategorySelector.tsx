@@ -84,7 +84,7 @@ const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) 
               field.onChange(value);
             }}
             items={comboboxItems}
-            className={cn(className)}
+            className={cn('text-[var(--brand-primary)] hover:text-[var(--brand-primary)]', className)}
             ariaLabel={ariaLabel}
             isCollapsed={false}
             showCarat={true}
