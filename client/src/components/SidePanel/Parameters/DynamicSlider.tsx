@@ -184,7 +184,7 @@ function DynamicSlider({
                   defaultTextProps,
                   cn(
                     optionText,
-                    'reset-rc-number-input reset-rc-number-input-text-right h-auto w-12 border-0 bg-transparent py-1 text-xs text-[#4b5563] group-hover/temp:border-gray-200 hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
+                    'reset-rc-number-input reset-rc-number-input-text-right h-auto w-12 border-0 bg-[var(--brand-primary)] py-1 text-xs text-white group-hover/temp:border-gray-200 hover:bg-[var(--brand-primary)] focus:bg-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:focus:bg-[var(--brand-primary)]',
                   ),
                 )}
               />
@@ -199,7 +199,7 @@ function DynamicSlider({
                   defaultTextProps,
                   cn(
                     optionText,
-                    'reset-rc-number-input h-auto w-14 border-0 bg-transparent py-1 pl-1 text-center text-xs text-[#4b5563] group-hover/temp:border-gray-200 hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
+                    'reset-rc-number-input h-auto w-14 border-0 bg-[var(--brand-primary)] py-1 pl-1 text-center text-xs text-white group-hover/temp:border-gray-200 hover:bg-[var(--brand-primary)] focus:bg-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:focus:bg-[var(--brand-primary)]',
                   ),
                 )}
               />

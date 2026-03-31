@@ -263,8 +263,10 @@ export default function Conversation({
               size={20}
               context="menu-item"
               className={cn(
-                'mr-0',
-                isActiveConvo || isPopoverActive ? '!text-[var(--brand-primary)]' : '',
+                'mr-0 transition-colors',
+                isActiveConvo || isPopoverActive
+                  ? '!text-[var(--brand-primary)]'
+                  : 'group-hover:!text-[var(--brand-primary)] group-focus-within:!text-[var(--brand-primary)]',
               )}
             />
           )}
