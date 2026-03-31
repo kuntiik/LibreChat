@@ -329,7 +329,7 @@ export default function FavoritesList({
                 role="button"
                 tabIndex={0}
                 aria-label={localize('com_agents_marketplace')}
-                className="group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white"
+                className="group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt hover:text-[var(--brand-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--border-focus)]"
                 onClick={handleAgentMarketplace}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -341,7 +341,7 @@ export default function FavoritesList({
               >
                 <div className="flex flex-1 items-center truncate pr-6">
                   <div className="mr-2 h-5 w-5">
-                    <LayoutGrid className="h-5 w-5 text-text-primary" />
+                    <LayoutGrid className="h-5 w-5 text-current" />
                   </div>
                   <span className="truncate">{localize('com_agents_marketplace')}</span>
                 </div>

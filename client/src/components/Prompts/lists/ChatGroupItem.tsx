@@ -49,7 +49,7 @@ function ChatGroupItem({ group }: { group: TPromptGroup }) {
 
   return (
     <>
-      <div className="mb-2 rounded-xl border border-border-light bg-transparent px-1 hover:bg-surface-secondary">
+      <div className="group/card mb-2 rounded-xl border border-border-light bg-transparent px-1 hover:bg-surface-hover">
         <ListCard
           name={group.name}
           category={group.category ?? ''}
@@ -73,7 +73,10 @@ function ChatGroupItem({ group }: { group: TPromptGroup }) {
                         aria-label={localize('com_ui_by_author', { 0: group.authorName })}
                         className="flex shrink-0 cursor-default items-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
                       >
-                        <User className="icon-md text-text-secondary" aria-hidden="true" />
+                        <User
+                          className="icon-md text-text-secondary group-hover/card:text-[var(--brand-primary)]"
+                          aria-hidden="true"
+                        />
                       </span>
                     }
                   />
@@ -104,7 +107,10 @@ function ChatGroupItem({ group }: { group: TPromptGroup }) {
                     setPreviewDialogOpen(true);
                   }}
                 >
-                  <Eye className="size-4 text-text-primary" aria-hidden="true" />
+                  <Eye
+                    className="size-4 text-text-primary group-hover/card:text-[var(--brand-primary)]"
+                    aria-hidden="true"
+                  />
                 </Button>
               }
             />
@@ -123,7 +129,10 @@ function ChatGroupItem({ group }: { group: TPromptGroup }) {
                       navigate(`/d/prompts/${group._id}`);
                     }}
                   >
-                    <Pencil className="size-4 text-text-primary" aria-hidden="true" />
+                    <Pencil
+                      className="size-4 text-text-primary group-hover/card:text-[var(--brand-primary)]"
+                      aria-hidden="true"
+                    />
                   </Button>
                 }
               />

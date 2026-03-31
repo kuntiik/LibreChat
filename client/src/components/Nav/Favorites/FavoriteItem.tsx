@@ -110,8 +110,8 @@ export default function FavoriteItem({
       tabIndex={0}
       aria-label={ariaLabel}
       className={cn(
-        'group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white',
-        isPopoverActive ? 'bg-surface-active-alt' : '',
+        'group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt hover:text-[var(--brand-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--border-focus)]',
+        isPopoverActive ? 'bg-surface-active-alt text-[var(--brand-primary)]' : '',
       )}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -140,7 +140,8 @@ export default function FavoriteItem({
           trigger={
             <Menu.MenuButton
               className={cn(
-                'inline-flex h-7 w-7 items-center justify-center rounded-md border-none p-0 text-sm font-medium ring-ring-primary transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+                'inline-flex h-7 w-7 items-center justify-center rounded-md border-none p-0 text-sm font-medium text-text-secondary ring-ring-primary transition-all duration-200 ease-in-out hover:bg-surface-hover hover:text-[var(--brand-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+                isPopoverActive ? 'text-[var(--brand-primary)]' : '',
                 isPopoverActive
                   ? 'opacity-100'
                   : 'opacity-0 focus:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 data-[open]:opacity-100',
@@ -156,7 +157,7 @@ export default function FavoriteItem({
                 }
               }}
             >
-              <Ellipsis className="icon-md text-text-secondary" aria-hidden={true} />
+              <Ellipsis className="icon-md text-current" aria-hidden={true} />
             </Menu.MenuButton>
           }
           items={dropdownItems}

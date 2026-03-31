@@ -99,7 +99,7 @@ function DashGroupItemComponent({ group }: { group: TPromptGroup }) {
   return (
     <article
       className={cn(
-        'group/card relative flex w-full items-center overflow-hidden rounded-lg border border-border-light bg-transparent text-left hover:bg-surface-secondary',
+        'group/card relative flex w-full items-center overflow-hidden rounded-lg border border-border-light bg-transparent text-left hover:bg-surface-hover',
         params.promptId === group._id && 'bg-surface-hover',
       )}
     >
@@ -115,7 +115,7 @@ function DashGroupItemComponent({ group }: { group: TPromptGroup }) {
             e.preventDefault();
             handleContainerClick();
           }}
-          className="min-w-0 flex-1 truncate text-base font-semibold text-text-primary after:absolute after:inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary focus-visible:ring-offset-2"
+          className="min-w-0 flex-1 truncate text-base font-semibold text-text-primary after:absolute after:inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary focus-visible:ring-offset-2 group-hover/card:text-[var(--brand-primary)]"
           title={group.name}
           aria-label={ariaLabel}
         >
@@ -132,7 +132,10 @@ function DashGroupItemComponent({ group }: { group: TPromptGroup }) {
                 aria-label={localize('com_ui_by_author', { 0: group.authorName })}
                 className="flex shrink-0 cursor-default items-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring-primary"
               >
-                <User className="icon-md text-text-secondary" aria-hidden="true" />
+                <User
+                  className="icon-md text-text-secondary group-hover/card:text-[var(--brand-primary)]"
+                  aria-hidden="true"
+                />
               </span>
             }
           />
@@ -159,7 +162,7 @@ function DashGroupItemComponent({ group }: { group: TPromptGroup }) {
                     className="size-7"
                     aria-label={localize('com_ui_rename_prompt_name', { name: group.name })}
                   >
-                    <Pencil className="size-4 text-text-primary" aria-hidden="true" />
+                    <Pencil className="size-4 text-current" aria-hidden="true" />
                   </Button>
                 }
               />
@@ -198,7 +201,7 @@ function DashGroupItemComponent({ group }: { group: TPromptGroup }) {
                     className="size-7"
                     aria-label={localize('com_ui_delete_prompt_name', { name: group.name })}
                   >
-                    <Trash2 className="size-4 text-text-primary" aria-hidden="true" />
+                    <Trash2 className="size-4 text-current" aria-hidden="true" />
                   </Button>
                 }
               />

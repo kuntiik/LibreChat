@@ -388,10 +388,6 @@ html {
   border-right: 1px solid var(--surface-sidebar);
 }
 
-.sidebar-theme a {
-  color: rgba(255, 255, 255, 0.82);
-}
-
 .sidebar-theme .cta-contrast {
   background: #ffffff;
   color: var(--brand-primary);
@@ -407,11 +403,13 @@ html {
   color: var(--brand-primary) !important;
 }
 
-.sidebar-theme input,
+.sidebar-theme input:not([type='checkbox']):not([type='radio']):not([type='range']),
 .sidebar-theme textarea,
 .sidebar-theme select {
   color: var(--brand-primary) !important;
   caret-color: var(--brand-primary);
+  background-color: #d1d6dc;
+  border-color: #c7ccd3;
 }
 
 .sidebar-theme input::placeholder,

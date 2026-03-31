@@ -248,7 +248,8 @@ function ConvoOptions({
   );
 
   const buttonClassName = cn(
-    'inline-flex h-7 w-7 items-center justify-center rounded-md border-none p-0 text-sm font-medium ring-ring-primary transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+    'inline-flex h-7 w-7 items-center justify-center rounded-md border-none p-0 text-sm font-medium text-text-secondary ring-ring-primary transition-all duration-200 ease-in-out hover:bg-surface-hover hover:text-[var(--brand-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+    isActiveConvo || isPopoverActive ? 'text-[var(--brand-primary)]' : '',
     isActiveConvo === true || isPopoverActive
       ? 'opacity-100'
       : 'opacity-0 focus:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 data-[open]:opacity-100',
@@ -266,7 +267,7 @@ function ConvoOptions({
           {isArchiveLoading ? (
             <Spinner className="size-4" />
           ) : (
-            <Archive className="icon-md text-text-secondary" aria-hidden={true} />
+            <Archive className="icon-md text-current" aria-hidden={true} />
           )}
         </button>
         <button
@@ -278,7 +279,7 @@ function ConvoOptions({
           {isDeleteLoading ? (
             <Spinner className="size-4" />
           ) : (
-            <Trash className="icon-md text-text-secondary" aria-hidden={true} />
+            <Trash className="icon-md text-current" aria-hidden={true} />
           )}
         </button>
       </div>
@@ -304,7 +305,8 @@ function ConvoOptions({
             aria-label={localize('com_nav_convo_menu_options')}
             aria-expanded={isPopoverActive}
             className={cn(
-              'inline-flex h-7 w-7 items-center justify-center gap-2 rounded-md border-none p-0 text-sm font-medium ring-ring-primary transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+              'inline-flex h-7 w-7 items-center justify-center gap-2 rounded-md border-none p-0 text-sm font-medium text-text-secondary ring-ring-primary transition-all duration-200 ease-in-out hover:bg-surface-hover hover:text-[var(--brand-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+              isActiveConvo || isPopoverActive ? 'text-[var(--brand-primary)]' : '',
               isActiveConvo === true || isPopoverActive
                 ? 'opacity-100'
                 : 'opacity-0 focus:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 data-[open]:opacity-100',
@@ -318,7 +320,7 @@ function ConvoOptions({
               }
             }}
           >
-            <Ellipsis className="icon-md text-text-secondary" aria-hidden={true} />
+            <Ellipsis className="icon-md text-current" aria-hidden={true} />
           </Ariakit.MenuButton>
         }
         items={dropdownItems}

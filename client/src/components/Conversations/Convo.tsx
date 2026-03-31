@@ -237,7 +237,7 @@ export default function Conversation({
         >
           {isGenerating ? (
             <svg
-              className="h-5 w-5 flex-shrink-0 animate-spin text-text-primary"
+              className="h-5 w-5 flex-shrink-0 animate-spin text-current"
               viewBox="0 0 24 24"
               fill="none"
               aria-label={localize('com_ui_generating')}

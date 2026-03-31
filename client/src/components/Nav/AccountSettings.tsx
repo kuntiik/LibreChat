@@ -27,8 +27,8 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
         data-testid="nav-user"
         className={
           collapsed
-            ? 'flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-surface-active-alt aria-[expanded=true]:bg-surface-active-alt'
-            : 'mt-text-sm flex h-auto w-full items-center gap-2 rounded-xl p-2 text-sm transition-all duration-200 ease-in-out hover:bg-surface-active-alt aria-[expanded=true]:bg-surface-active-alt'
+            ? 'group flex h-9 w-9 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-surface-active-alt hover:text-[var(--brand-primary)] aria-[expanded=true]:bg-surface-active-alt aria-[expanded=true]:text-[var(--brand-primary)]'
+            : 'group mt-text-sm flex h-auto w-full items-center gap-2 rounded-xl p-2 text-sm text-text-primary transition-all duration-200 ease-in-out hover:bg-surface-active-alt hover:text-[var(--brand-primary)] aria-[expanded=true]:bg-surface-active-alt aria-[expanded=true]:text-[var(--brand-primary)]'
         }
       >
         <div
@@ -40,7 +40,7 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
         </div>
         {!collapsed && (
           <div
-            className="mt-2 grow overflow-hidden text-ellipsis whitespace-nowrap text-left text-text-primary"
+            className="mt-2 grow overflow-hidden text-ellipsis whitespace-nowrap text-left text-current"
             style={{ marginTop: '0', marginLeft: '0' }}
           >
             {user?.name ?? user?.username ?? localize('com_nav_user')}

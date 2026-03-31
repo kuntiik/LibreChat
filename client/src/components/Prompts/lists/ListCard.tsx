@@ -43,7 +43,7 @@ export default function ListCard({
           <CategoryIcon category={category} className="icon-md shrink-0" aria-hidden="true" />
           <Label
             id={titleId}
-            className="min-w-0 select-none truncate text-sm font-semibold text-text-primary"
+            className="min-w-0 select-none truncate text-sm font-semibold text-text-primary group-hover/card:text-[var(--brand-primary)]"
             title={name}
           >
             {name}
@@ -54,7 +54,7 @@ export default function ListCard({
       </div>
       <div
         id={snippetId}
-        className="ellipsis max-w-full select-none text-balance pt-1 text-sm text-text-secondary"
+        className="ellipsis max-w-full select-none text-balance pt-1 text-sm text-text-secondary group-hover/card:text-[var(--brand-primary)]"
       >
         {snippet}
       </div>
