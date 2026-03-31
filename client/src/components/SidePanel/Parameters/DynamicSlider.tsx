@@ -6,6 +6,7 @@ import { useLocalize, useDebouncedInput, useParameterEffects, TranslationKeys } 
 import { cn, defaultTextProps, optionText } from '~/utils';
 import { ESide, defaultDebouncedDelay } from '~/common';
 import { useChatContext } from '~/Providers';
+import { isBrandedParameterInputKey } from './keys';
 import OptionHover from './OptionHover';
 
 function DynamicSlider({
@@ -144,6 +145,8 @@ function DynamicSlider({
     }
   }, [isEnum, options, range]);
 
+  const useBrandedInputColors = isBrandedParameterInputKey(settingKey);
+
   if (!range && !isEnum) {
     return null;
   }
@@ -184,7 +187,10 @@ function DynamicSlider({
                   defaultTextProps,
                   cn(
                     optionText,
-                    'reset-rc-number-input reset-rc-number-input-text-right h-auto w-12 border-0 bg-[var(--brand-primary)] py-1 text-xs text-white group-hover/temp:border-gray-200 hover:bg-[var(--brand-primary)] focus:bg-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:focus:bg-[var(--brand-primary)]',
+                    'reset-rc-number-input reset-rc-number-input-text-right h-auto w-12 border-0 py-1 text-xs group-hover/temp:border-gray-200',
+                    useBrandedInputColors
+                      ? '!border-[var(--brand-primary)] !bg-[var(--brand-primary)] !text-white hover:!bg-[var(--brand-primary)] focus:!bg-[var(--brand-primary)] dark:hover:!bg-[var(--brand-primary)] dark:focus:!bg-[var(--brand-primary)] [&_input]:!bg-transparent [&_input]:!text-white'
+                      : 'bg-transparent text-[#4b5563] hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
                   ),
                 )}
               />
@@ -199,7 +205,10 @@ function DynamicSlider({
                   defaultTextProps,
                   cn(
                     optionText,
-                    'reset-rc-number-input h-auto w-14 border-0 bg-[var(--brand-primary)] py-1 pl-1 text-center text-xs text-white group-hover/temp:border-gray-200 hover:bg-[var(--brand-primary)] focus:bg-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)] dark:focus:bg-[var(--brand-primary)]',
+                    'reset-rc-number-input h-auto w-14 border-0 py-1 pl-1 text-center text-xs group-hover/temp:border-gray-200',
+                    useBrandedInputColors
+                      ? '!border-[var(--brand-primary)] !bg-[var(--brand-primary)] !text-white hover:!bg-[var(--brand-primary)] focus:!bg-[var(--brand-primary)] dark:hover:!bg-[var(--brand-primary)] dark:focus:!bg-[var(--brand-primary)]'
+                      : 'bg-transparent text-[#4b5563] hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
                   ),
                 )}
               />

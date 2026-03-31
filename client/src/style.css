@@ -410,6 +410,7 @@ html {
   caret-color: var(--brand-primary);
   background-color: #d1d6dc;
   border-color: #c7ccd3;
+  color: var(--brand-primary)
 }
 
 .sidebar-theme input::placeholder,

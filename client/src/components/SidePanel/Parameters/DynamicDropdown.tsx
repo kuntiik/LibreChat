@@ -7,6 +7,7 @@ import { useChatContext } from '~/Providers';
 import OptionHover from './OptionHover';
 import { ESide } from '~/common';
 import { cn } from '~/utils';
+import { isBrandedParameterInputKey } from './keys';
 
 function DynamicDropdown({
   label = '',
@@ -30,6 +31,7 @@ function DynamicDropdown({
   const localize = useLocalize();
   const { preset } = useChatContext();
   const [inputValue, setInputValue] = useState<string | null>(null);
+  const useBrandedInputColors = isBrandedParameterInputKey(settingKey);
 
   const selectedValue = useMemo(() => {
     if (optionType === OptionTypes.Custom) {
@@ -95,7 +97,12 @@ function DynamicDropdown({
             setValue={handleChange}
             availableValues={options}
             containerClassName="w-full"
-            className="py-1.5"
+            className={cn(
+              'py-1.5',
+              useBrandedInputColors &&
+                '!border-[var(--brand-primary)] !bg-[var(--brand-primary)] !text-white hover:!bg-[var(--brand-primary)]',
+            )}
+            currentValueClass={cn(useBrandedInputColors && '!text-white')}
             id={`${settingKey}-dynamic-dropdown`}
             placeholder={
               placeholderCode
