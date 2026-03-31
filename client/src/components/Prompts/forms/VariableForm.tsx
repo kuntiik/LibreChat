@@ -174,6 +174,7 @@ export default function VariableForm({
                       <InputCombobox
                         options={field.config.options || []}
                         placeholder={field.config.variable}
+                        suppressFocusRing={true}
                         className={cn(
                           defaultTextProps,
                           'mb-1 rounded px-3 py-2 focus:border-[var(--brand-primary)] focus:bg-surface-tertiary focus:ring-[var(--brand-primary)]',
