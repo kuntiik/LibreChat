@@ -188,9 +188,7 @@ function DynamicSlider({
                   cn(
                     optionText,
                     'reset-rc-number-input reset-rc-number-input-text-right h-auto w-12 border-0 py-1 text-xs group-hover/temp:border-gray-200',
-                    useBrandedInputColors
-                      ? 'unified-sidebar-special-input [&_input]:!bg-transparent [&_input]:!text-white'
-                      : 'bg-transparent text-[#4b5563] hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
+                     'unified-sidebar-special-input [&_input]:!bg-transparent [&_input]:!text-white',
                   ),
                 )}
               />
