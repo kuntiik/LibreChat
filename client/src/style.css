@@ -373,11 +373,22 @@ html {
 }
 
 .sidebar-theme {
+  --surface-app: #002554;
+  --surface-primary: #002554;
   --surface-primary-alt: var(--surface-sidebar);
+  --surface-secondary: #002554;
+  --surface-secondary-alt: #0e3a6f;
+  --surface-tertiary: #0e3a6f;
+  --surface-tertiary-alt: #0e3a6f;
   --surface-active: #d1d6dc;
   --surface-active-alt: #d1d6dc;
   --surface-hover: #d1d6dc;
-  --surface-hover-alt: #d1d6dc;
+  --surface-hover-alt: #c7ccd3;
+  --border-light: #0e3a6f;
+  --border-medium: #0e3a6f;
+  --border-medium-alt: #0e3a6f;
+  --border-heavy: #0e3a6f;
+  --border-xheavy: #0e3a6f;
   --ring-primary: var(--border-focus);
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.82);
@@ -1601,6 +1612,7 @@ button {
 .btn-primary:hover {
   --tw-bg-opacity: 1;
   background-color: rgba(26, 127, 100, var(--tw-bg-opacity));
+  color: rgba(255, 255, 255, var(--tw-text-opacity));
 }
 .btn-primary:focus {
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width)
