@@ -1,5 +1,5 @@
 import debounce from 'lodash/debounce';
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { SetterOrUpdater } from 'recoil';
 import type { TSetOption } from '~/common';
 import { defaultDebouncedDelay } from '~/common';
@@ -34,6 +34,12 @@ function useDebouncedInput<T = unknown>({
     () => debounce(setOption && optionKey ? setOption(optionKey) : setter || (() => {}), delay),
     [setOption, optionKey, setter, delay],
   );
+
+  useEffect(() => {
+    return () => {
+      setDebouncedOption.cancel();
+    };
+  }, [setDebouncedOption]);
 
   /** An onChange handler that updates the local state and the debounced option */
   const onChange = useCallback(
