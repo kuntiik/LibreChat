@@ -1,12 +1,54 @@
 import { memo, useCallback, lazy, Suspense } from 'react';
-import { Skeleton, Sidebar, Button, TooltipAnchor } from '@librechat/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { useRecoilValue } from 'recoil';
+import { QueryKeys } from 'librechat-data-provider';
+import { Skeleton, Sidebar, Button, TooltipAnchor, NewChatIcon } from '@librechat/client';
 import type { NavLink } from '~/common';
 import { CLOSE_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
 import { useActivePanel, resolveActivePanel } from '~/Providers';
-import { useLocalize } from '~/hooks';
-import { cn } from '~/utils';
+import { useLocalize, useNewConvo } from '~/hooks';
+import { clearMessagesCache, cn } from '~/utils';
+import store from '~/store';
 
 const AccountSettings = lazy(() => import('~/components/Nav/AccountSettings'));
+
+const NewChatButton = memo(function NewChatButton() {
+  const localize = useLocalize();
+  const queryClient = useQueryClient();
+  const { newConversation } = useNewConvo();
+  const conversation = useRecoilValue(store.conversationByIndex(0));
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>) => {
+      if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
+        return;
+      }
+      e.preventDefault();
+      clearMessagesCache(queryClient, conversation?.conversationId);
+      queryClient.invalidateQueries([QueryKeys.messages]);
+      newConversation();
+    },
+    [queryClient, conversation?.conversationId, newConversation],
+  );
+
+  return (
+    <TooltipAnchor
+      side="right"
+      description={localize('com_ui_new_chat')}
+      render={
+        <a
+          href="/c/new"
+          data-testid="new-chat-button"
+          aria-label={localize('com_ui_new_chat')}
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-transparent bg-[#d1d6dc] text-[var(--brand-primary)] duration-0 hover:bg-[#c7ccd3] active:bg-[#b9c0c9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-sidebar)]"
+          onClick={handleClick}
+        >
+          <NewChatIcon className="size-5 !text-[var(--brand-primary-active)] dark:!text-[var(--brand-primary-active)]" />
+        </a>
+      }
+    />
+  );
+});
 
 const NavIconButton = memo(function NavIconButton({
   link,
@@ -52,7 +94,7 @@ const NavIconButton = memo(function NavIconButton({
           className={cn(
             'h-9 w-9 rounded-lg transition-colors',
             isActive
-              ? 'bg-surface-active-alt text-[var(--brand-primary)]'
+              ? 'text-[var(--brand-primary)] hover:bg-surface-hover'
               : 'text-text-secondary hover:bg-surface-hover hover:text-[var(--brand-primary)]',
           )}
           onClick={handleClick}
@@ -102,6 +144,7 @@ function ExpandedPanel({
           </Button>
         }
       />
+      <NewChatButton />
       <div className="flex flex-col gap-1 overflow-y-auto">
         {links.map((link) => (
           <NavIconButton
