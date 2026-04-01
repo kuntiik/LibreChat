@@ -94,7 +94,9 @@ const NavIconButton = memo(function NavIconButton({
           className={cn(
             'h-9 w-9 rounded-lg transition-colors',
             isActive
-              ? 'text-[var(--brand-primary)] hover:bg-surface-hover'
+              ? expanded
+                ? 'text-[var(--brand-primary)] hover:bg-surface-hover'
+                : 'text-text-secondary hover:bg-surface-hover'
               : 'text-text-secondary hover:bg-surface-hover hover:text-[var(--brand-primary)]',
           )}
           onClick={handleClick}
