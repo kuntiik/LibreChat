@@ -49,6 +49,8 @@ jest.mock('@librechat/api', () => {
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 const requireJwtAuth = require('../requireJwtAuth');
+const passport = require('passport');
+const { isEnabled } = require('@librechat/api');
 
 function mockReq(user) {
   return { headers: {}, _mockUser: user };
@@ -72,6 +74,11 @@ function runAuth(user) {
 // ── Tests ──────────────────────────────────────────────────────────────
 
 describe('requireJwtAuth tenant context chaining', () => {
+  beforeEach(() => {
+    passport.authenticate.mockClear();
+    isEnabled.mockReturnValue(false);
+  });
+
   afterEach(() => {
     mockPassportError = null;
   });
@@ -112,5 +119,20 @@ describe('requireJwtAuth tenant context chaining', () => {
 
   it('ALS context is not set at top-level scope (outside any request)', () => {
     expect(getTenantId()).toBeUndefined();
+  });
+
+  it('uses the last duplicate token_provider value when selecting auth strategy', async () => {
+    isEnabled.mockReturnValue(true);
+    const req = {
+      headers: { cookie: 'token_provider=librechat; token_provider=openid' },
+      _mockUser: { role: 'user' },
+    };
+    const res = mockRes();
+
+    await new Promise((resolve) => {
+      requireJwtAuth(req, res, () => resolve());
+    });
+
+    expect(passport.authenticate).toHaveBeenCalledWith('openidJwt', { session: false });
   });
 });

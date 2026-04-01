@@ -534,12 +534,7 @@ const setOpenIDAuthTokens = (tokenset, req, res, userId, existingRefreshToken) =
      * The refresh token is small (opaque string) so it doesn't hit the HTTP/2 header
      * size limits that motivated session storage for the larger access_token/id_token.
      */
-    res.cookie('refreshToken', refreshToken, {
-      expires: expirationDate,
-      httpOnly: true,
-      secure: shouldUseSecureCookie(),
-      sameSite: 'strict',
-    });
+    res.cookie('refreshToken', refreshToken, getAuthCookieOptions(expirationDate));
 
     /** Store tokens server-side in session to avoid large cookies */
     if (req.session) {
@@ -551,12 +546,7 @@ const setOpenIDAuthTokens = (tokenset, req, res, userId, existingRefreshToken) =
       };
     } else {
       logger.warn('[setOpenIDAuthTokens] No session available, falling back to cookies');
-      res.cookie('openid_access_token', tokenset.access_token, {
-        expires: expirationDate,
-        httpOnly: true,
-        secure: shouldUseSecureCookie(),
-        sameSite: 'strict',
-      });
+      res.cookie('openid_access_token', tokenset.access_token, getAuthCookieOptions(expirationDate));
       if (tokenset.id_token) {
         res.cookie('openid_id_token', tokenset.id_token, getAuthCookieOptions(expirationDate));
       }

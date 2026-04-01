@@ -234,6 +234,34 @@ describe('setOpenIDAuthTokens', () => {
         expect.objectContaining({ secure: false }),
       );
     });
+
+    it('should set refreshToken cookie on root path to prevent duplicate path shadowing', () => {
+      const tokenset = {
+        id_token: 'the-id-token',
+        access_token: 'the-access-token',
+        refresh_token: 'the-refresh-token',
+      };
+      const req = mockRequest();
+      const res = mockResponse();
+
+      setOpenIDAuthTokens(tokenset, req, res, 'user-123');
+
+      expect(res._cookies.refreshToken.options.path).toBe('/');
+    });
+
+    it('should set openid_access_token cookie on root path in cookie fallback mode', () => {
+      const tokenset = {
+        id_token: 'the-id-token',
+        access_token: 'the-access-token',
+        refresh_token: 'the-refresh-token',
+      };
+      const req = { session: null };
+      const res = mockResponse();
+
+      setOpenIDAuthTokens(tokenset, req, res, 'user-123');
+
+      expect(res._cookies.openid_access_token.options.path).toBe('/');
+    });
   });
 
   describe('edge cases', () => {

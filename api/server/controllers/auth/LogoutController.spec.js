@@ -249,11 +249,20 @@ describe('LogoutController', () => {
 
       await logoutController(req, res);
 
-      expect(res.clearCookie).toHaveBeenCalledWith('refreshToken');
-      expect(res.clearCookie).toHaveBeenCalledWith('openid_access_token');
-      expect(res.clearCookie).toHaveBeenCalledWith('openid_id_token');
-      expect(res.clearCookie).toHaveBeenCalledWith('openid_user_id');
-      expect(res.clearCookie).toHaveBeenCalledWith('token_provider');
+      const cookieNames = [
+        'refreshToken',
+        'openid_access_token',
+        'openid_id_token',
+        'openid_user_id',
+        'token_provider',
+      ];
+      const cookiePaths = ['/', '/api', '/api/auth'];
+
+      for (const cookieName of cookieNames) {
+        for (const path of cookiePaths) {
+          expect(res.clearCookie).toHaveBeenCalledWith(cookieName, { path });
+        }
+      }
     });
   });
 

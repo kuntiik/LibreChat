@@ -18,6 +18,7 @@ const {
 } = require('~/models');
 const { getGraphApiToken } = require('~/server/services/GraphTokenService');
 const { getOpenIdConfig, getOpenIdEmail } = require('~/strategies');
+const { parseCookiesWithLastValue } = require('~/server/utils/cookies');
 
 const registrationController = async (req, res) => {
   try {

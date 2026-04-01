@@ -42,6 +42,7 @@ const AuthContextProvider = ({
   const isExternalRedirectRef = useRef(false);
   const [user, setUser] = useRecoilState(store.user);
   const logoutRedirectRef = useRef<string | undefined>(undefined);
+  const authFlowVersionRef = useRef(0);
   const [token, setToken] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -169,6 +170,10 @@ const AuthContextProvider = ({
     }
     refreshToken.mutate(undefined, {
       onSuccess: (data: t.TRefreshTokenResponse | undefined) => {
+        if (refreshVersion !== authFlowVersionRef.current) {
+          console.log('Ignoring stale silent refresh response.');
+          return;
+        }
         if (isExternalRedirectRef.current) {
           return;
         }
@@ -196,6 +201,10 @@ const AuthContextProvider = ({
         navigate(buildLoginRedirectUrl());
       },
       onError: (error) => {
+        if (refreshVersion !== authFlowVersionRef.current) {
+          console.log('Ignoring stale silent refresh error.');
+          return;
+        }
         if (isExternalRedirectRef.current) {
           return;
         }
