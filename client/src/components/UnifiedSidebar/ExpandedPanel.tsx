@@ -7,7 +7,7 @@ import type { NavLink } from '~/common';
 import { CLOSE_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
 import { useActivePanel, resolveActivePanel } from '~/Providers';
 import { useLocalize, useNewConvo } from '~/hooks';
-import { clearMessagesCache, cn } from '~/utils';
+import { clearMessagesCache } from '~/utils';
 import store from '~/store';
 
 const AccountSettings = lazy(() => import('~/components/Nav/AccountSettings'));
@@ -91,14 +91,7 @@ const NavIconButton = memo(function NavIconButton({
           variant="ghost"
           aria-label={localize(link.title)}
           aria-pressed={isActive}
-          className={cn(
-            'h-9 w-9 rounded-lg transition-colors',
-            isActive
-              ? expanded
-                ? 'text-[var(--brand-primary)] hover:bg-surface-hover'
-                : 'text-text-secondary hover:bg-surface-hover'
-              : 'text-text-secondary hover:bg-surface-hover hover:text-[var(--brand-primary)]',
-          )}
+          className={`sidebar-nav-buttons ${isActive ? 'sidebar-nav-buttons-active' : ''} h-9 w-9 rounded-lg transition-colors`}
           onClick={handleClick}
         >
           <link.icon className="h-4 w-4" aria-hidden="true" />
@@ -139,7 +132,7 @@ function ExpandedPanel({
             variant="ghost"
             aria-label={localize(toggleLabel)}
             aria-expanded={expanded}
-            className="h-9 w-9 rounded-lg text-text-secondary hover:bg-surface-hover hover:text-[var(--brand-primary)]"
+            className="sidebar-nav-buttons h-9 w-9 rounded-lg transition-colors"
             onClick={toggleClick}
           >
             <Sidebar aria-hidden="true" className="h-5 w-5 text-current" />

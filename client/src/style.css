@@ -503,6 +503,43 @@ html {
   stroke: currentColor;
 }
 
+.unified-sidebar-theme .app-button.sidebar-nav-buttons:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input),
+.unified-sidebar-theme .btn.sidebar-nav-buttons:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input) {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.unified-sidebar-theme .app-button.sidebar-nav-buttons:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input):hover,
+.unified-sidebar-theme .app-button.sidebar-nav-buttons:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input):active,
+.unified-sidebar-theme .app-button.sidebar-nav-buttons:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input):focus,
+.unified-sidebar-theme .btn.sidebar-nav-buttons:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input):hover,
+.unified-sidebar-theme .btn.sidebar-nav-buttons:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input):active,
+.unified-sidebar-theme .btn.sidebar-nav-buttons:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input):focus {
+  background-color: var(--surface-hover) !important;
+  border-color: var(--surface-hover-alt) !important;
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .app-button.sidebar-nav-buttons[aria-pressed='true']:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input),
+.unified-sidebar-theme .btn.sidebar-nav-buttons[aria-pressed='true']:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input) {
+  background-color: var(--surface-hover) !important;
+  border-color: var(--surface-hover-alt) !important;
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .app-button.sidebar-nav-buttons.sidebar-nav-buttons-active:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input),
+.unified-sidebar-theme .btn.sidebar-nav-buttons.sidebar-nav-buttons-active:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input) {
+  background-color: var(--surface-hover) !important;
+  border-color: var(--surface-hover-alt) !important;
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .app-button.sidebar-nav-buttons:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input) *,
+.unified-sidebar-theme .btn.sidebar-nav-buttons:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input) * {
+  color: currentColor !important;
+}
+
 .unified-sidebar-theme .unified-sidebar-special-input,
 .unified-sidebar-theme .unified-sidebar-special-input:hover,
 .unified-sidebar-theme .unified-sidebar-special-input:active,
