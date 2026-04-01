@@ -555,7 +555,7 @@ html {
   color: #ffffff !important;
 }
 
-.unified-sidebar-theme .unified-sidebar-special-input input,
+.unified-sidebar-theme .unified-sidebar-special-input input:not([type='checkbox']):not([type='radio']):not([type='range']),
 .unified-sidebar-theme .unified-sidebar-special-input textarea,
 .unified-sidebar-theme .unified-sidebar-special-input select {
   background-color: transparent !important;
