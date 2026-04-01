@@ -114,6 +114,7 @@ function DynamicCombobox({
             items={items}
             SelectIcon={SelectIcon}
             className={cn(
+              'unified-sidebar-dropdown',
               useBrandedInputColors && 'unified-sidebar-special-input',
             )}
           />

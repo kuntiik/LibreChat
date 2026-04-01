@@ -428,6 +428,53 @@ html {
   color: rgba(0, 37, 84, 0.72) !important;
 }
 
+.unified-sidebar-theme .select-dropdown-trigger:not(.unified-sidebar-special-input),
+.unified-sidebar-theme .control-combobox-trigger:not(.unified-sidebar-special-input),
+.unified-sidebar-theme .unified-sidebar-dropdown:not(.unified-sidebar-special-input) {
+  background-color: #d1d6dc !important;
+  border-color: #c7ccd3 !important;
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .select-dropdown-trigger:not(.unified-sidebar-special-input):hover,
+.unified-sidebar-theme .select-dropdown-trigger:not(.unified-sidebar-special-input):active,
+.unified-sidebar-theme .select-dropdown-trigger:not(.unified-sidebar-special-input):focus,
+.unified-sidebar-theme .control-combobox-trigger:not(.unified-sidebar-special-input):hover,
+.unified-sidebar-theme .control-combobox-trigger:not(.unified-sidebar-special-input):active,
+.unified-sidebar-theme .control-combobox-trigger:not(.unified-sidebar-special-input):focus,
+.unified-sidebar-theme .unified-sidebar-dropdown:not(.unified-sidebar-special-input):hover,
+.unified-sidebar-theme .unified-sidebar-dropdown:not(.unified-sidebar-special-input):active,
+.unified-sidebar-theme .unified-sidebar-dropdown:not(.unified-sidebar-special-input):focus {
+  background-color: #d1d6dc !important;
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .select-dropdown-trigger:not(.unified-sidebar-special-input) *,
+.unified-sidebar-theme .control-combobox-trigger:not(.unified-sidebar-special-input) *,
+.unified-sidebar-theme .unified-sidebar-dropdown:not(.unified-sidebar-special-input) * {
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .select-dropdown-options,
+.unified-sidebar-theme .control-combobox-popover {
+  background-color: #d1d6dc !important;
+  border-color: #c7ccd3 !important;
+}
+
+.unified-sidebar-theme .select-dropdown-option,
+.unified-sidebar-theme .control-combobox-option,
+.unified-sidebar-theme .control-combobox-search {
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .select-dropdown-option:hover,
+.unified-sidebar-theme .select-dropdown-option[data-headlessui-state~='active'],
+.unified-sidebar-theme .control-combobox-option:hover,
+.unified-sidebar-theme .control-combobox-option[data-active-item] {
+  background-color: #c7ccd3 !important;
+  color: var(--brand-primary) !important;
+}
+
 .unified-sidebar-theme .unified-sidebar-special-input,
 .unified-sidebar-theme .unified-sidebar-special-input:hover,
 .unified-sidebar-theme .unified-sidebar-special-input:active,

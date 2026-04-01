@@ -85,7 +85,7 @@ const AgentCategorySelector: React.FC<{ className?: string }> = ({ className }) 
             }}
             items={comboboxItems}
             className={cn(
-              '!border-white !bg-white !text-white hover:!bg-white hover:!text-white dark:!bg-white dark:!text-white dark:hover:!bg-white dark:hover:!text-white',
+              'unified-sidebar-dropdown',
               className,
             )}
             ariaLabel={ariaLabel}
