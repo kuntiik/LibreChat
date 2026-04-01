@@ -475,6 +475,34 @@ html {
   color: var(--brand-primary) !important;
 }
 
+.unified-sidebar-theme .app-button:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input),
+.unified-sidebar-theme .btn:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input) {
+  background-color: #d1d6dc !important;
+  border-color: #c7ccd3 !important;
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .app-button:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input):hover,
+.unified-sidebar-theme .app-button:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input):active,
+.unified-sidebar-theme .app-button:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input):focus,
+.unified-sidebar-theme .btn:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input):hover,
+.unified-sidebar-theme .btn:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input):active,
+.unified-sidebar-theme .btn:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input):focus {
+  background-color: #c7ccd3 !important;
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .app-button:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input) *,
+.unified-sidebar-theme .btn:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input) * {
+  color: var(--brand-primary) !important;
+}
+
+.unified-sidebar-theme .app-button:not(.app-button-variant-submit):not(.app-button-variant-destructive):not(.unified-sidebar-special-input) svg,
+.unified-sidebar-theme .btn:not(.btn-primary):not(.btn-secondary):not(.btn-destructive):not(.unified-sidebar-special-input) svg {
+  color: var(--brand-primary) !important;
+  stroke: currentColor;
+}
+
 .unified-sidebar-theme .unified-sidebar-special-input,
 .unified-sidebar-theme .unified-sidebar-special-input:hover,
 .unified-sidebar-theme .unified-sidebar-special-input:active,
