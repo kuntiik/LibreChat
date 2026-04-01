@@ -414,19 +414,47 @@ html {
   color: var(--brand-primary) !important;
 }
 
-.sidebar-theme input:not([type='checkbox']):not([type='radio']):not([type='range']),
-.sidebar-theme textarea,
-.sidebar-theme select {
+.unified-sidebar-theme input:not([type='checkbox']):not([type='radio']):not([type='range']),
+.unified-sidebar-theme textarea,
+.unified-sidebar-theme select {
+  background-color: #d1d6dc !important;
+  border-color: #c7ccd3 !important;
   color: var(--brand-primary) !important;
   caret-color: var(--brand-primary);
-  background-color: #d1d6dc;
-  border-color: #c7ccd3;
-  color: var(--brand-primary)
 }
 
-.sidebar-theme input::placeholder,
-.sidebar-theme textarea::placeholder {
+.unified-sidebar-theme input::placeholder,
+.unified-sidebar-theme textarea::placeholder {
   color: rgba(0, 37, 84, 0.72) !important;
+}
+
+.unified-sidebar-theme .unified-sidebar-special-input,
+.unified-sidebar-theme .unified-sidebar-special-input:hover,
+.unified-sidebar-theme .unified-sidebar-special-input:active,
+.unified-sidebar-theme .unified-sidebar-special-input:focus,
+.unified-sidebar-theme .unified-sidebar-special-input:focus-within {
+  background-color: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: #ffffff !important;
+}
+
+.unified-sidebar-theme .unified-sidebar-special-input *,
+.unified-sidebar-theme .unified-sidebar-special-input svg {
+  color: #ffffff !important;
+}
+
+.unified-sidebar-theme .unified-sidebar-special-input input,
+.unified-sidebar-theme .unified-sidebar-special-input textarea,
+.unified-sidebar-theme .unified-sidebar-special-input select {
+  background-color: transparent !important;
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+
+.unified-sidebar-theme .unified-sidebar-special-input::placeholder,
+.unified-sidebar-theme .unified-sidebar-special-input input::placeholder,
+.unified-sidebar-theme .unified-sidebar-special-input textarea::placeholder {
+  color: rgba(255, 255, 255, 0.82) !important;
 }
 
 .account-settings-popover {

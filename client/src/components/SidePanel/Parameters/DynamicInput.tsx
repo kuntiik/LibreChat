@@ -85,8 +85,7 @@ function DynamicInput({
             placeholder={placeholderText}
             className={cn(
               'flex h-9 max-h-9 w-full resize-none rounded-lg border border-border-light bg-surface-secondary px-3 py-2',
-              useBrandedInputColors &&
-                '!border-[var(--brand-primary)] !bg-[var(--brand-primary)] !text-white placeholder:!text-white/80 hover:!bg-[var(--brand-primary)] focus:!bg-[var(--brand-primary)]',
+              useBrandedInputColors && 'unified-sidebar-special-input',
             )}
           />
         </HoverCardTrigger>

@@ -189,7 +189,7 @@ function DynamicSlider({
                     optionText,
                     'reset-rc-number-input reset-rc-number-input-text-right h-auto w-12 border-0 py-1 text-xs group-hover/temp:border-gray-200',
                     useBrandedInputColors
-                      ? '!border-[var(--brand-primary)] !bg-[var(--brand-primary)] !text-white hover:!bg-[var(--brand-primary)] focus:!bg-[var(--brand-primary)] dark:hover:!bg-[var(--brand-primary)] dark:focus:!bg-[var(--brand-primary)] [&_input]:!bg-transparent [&_input]:!text-white'
+                      ? 'unified-sidebar-special-input [&_input]:!bg-transparent [&_input]:!text-white'
                       : 'bg-transparent text-[#4b5563] hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
                   ),
                 )}
@@ -207,7 +207,7 @@ function DynamicSlider({
                     optionText,
                     'reset-rc-number-input h-auto w-14 border-0 py-1 pl-1 text-center text-xs group-hover/temp:border-gray-200',
                     useBrandedInputColors
-                      ? '!border-[var(--brand-primary)] !bg-[var(--brand-primary)] !text-white hover:!bg-[var(--brand-primary)] focus:!bg-[var(--brand-primary)] dark:hover:!bg-[var(--brand-primary)] dark:focus:!bg-[var(--brand-primary)]'
+                      ? 'unified-sidebar-special-input'
                       : 'bg-transparent text-[#4b5563] hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
                   ),
                 )}

@@ -114,8 +114,7 @@ function DynamicCombobox({
             items={items}
             SelectIcon={SelectIcon}
             className={cn(
-              useBrandedInputColors &&
-                '!border-[var(--brand-primary)] !bg-[var(--brand-primary)] !text-white hover:!bg-[var(--brand-primary)] hover:!text-white',
+              useBrandedInputColors && 'unified-sidebar-special-input',
             )}
           />
         </HoverCardTrigger>

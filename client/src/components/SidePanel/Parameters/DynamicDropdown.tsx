@@ -99,8 +99,7 @@ function DynamicDropdown({
             containerClassName="w-full"
             className={cn(
               'py-1.5',
-              useBrandedInputColors &&
-                '!border-[var(--brand-primary)] !bg-[var(--brand-primary)] !text-white hover:!bg-[var(--brand-primary)]',
+              useBrandedInputColors && 'unified-sidebar-special-input',
             )}
             currentValueClass={cn(useBrandedInputColors && '!text-white')}
             id={`${settingKey}-dynamic-dropdown`}
