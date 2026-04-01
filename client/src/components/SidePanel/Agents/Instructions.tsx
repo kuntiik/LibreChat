@@ -62,9 +62,9 @@ export default function Instructions() {
               <Menu.MenuButton
                 id="variables-menu-button"
                 aria-label="Add variable to instructions"
-                className="flex h-7 items-center gap-1 rounded-md border border-white bg-white px-2 py-0 text-sm text-white transition-colors duration-200 hover:bg-white hover:text-white dark:bg-white dark:text-white dark:hover:bg-white dark:hover:text-white"
+                className="flex h-7 items-center gap-1 rounded-md border border-white bg-white px-2 py-0 text-sm transition-colors duration-200 hover:bg-white hover:text-white dark:bg-white dark:text-white dark:hover:bg-white dark:hover:text-white"
               >
-                <PlusCircle className="mr-1 h-3 w-3 text-white" aria-hidden={true} />
+                <PlusCircle className="mr-1 h-3 w-3" aria-hidden={true} />
                 {localize('com_ui_variables')}
               </Menu.MenuButton>
             }
