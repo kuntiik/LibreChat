@@ -44,7 +44,10 @@ export default function Instructions() {
   return (
     <div className="mb-4">
       <div className="mb-2 flex items-center">
-        <label className="text-token-text-primary flex-grow font-medium" htmlFor="instructions">
+        <label
+          className="text-token-text-primary flex-grow text-sm font-medium"
+          htmlFor="instructions"
+        >
           {localize('com_ui_instructions')}
         </label>
         <div className="ml-auto" title="Add variables to instructions">
@@ -61,7 +64,7 @@ export default function Instructions() {
                 aria-label="Add variable to instructions"
                 className="flex h-7 items-center gap-1 rounded-md border border-border-medium bg-surface-secondary px-2 py-0 text-sm text-text-primary transition-colors duration-200 hover:bg-surface-tertiary"
               >
-                <PlusCircle className="mr-1 h-3 w-3 text-text-secondary" aria-hidden={true} />
+                <PlusCircle className="mr-1 h-3 w-3" aria-hidden={true} />
                 {localize('com_ui_variables')}
               </Menu.MenuButton>
             }

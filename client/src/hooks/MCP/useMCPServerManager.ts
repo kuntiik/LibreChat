@@ -2,7 +2,14 @@ import { useCallback, useState, useMemo, useRef, useEffect } from 'react';
 import { useAtom } from 'jotai';
 import { useToastContext } from '@librechat/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { Constants, QueryKeys, MCPOptions, ResourceType } from 'librechat-data-provider';
+import {
+  Constants,
+  QueryKeys,
+  MCPOptions,
+  Permissions,
+  ResourceType,
+  PermissionTypes,
+} from 'librechat-data-provider';
 import {
   useCancelMCPOAuthMutation,
   useUpdateUserPluginsMutation,
@@ -11,7 +18,7 @@ import {
 } from 'librechat-data-provider/react-query';
 import type { TUpdateUserPlugins, TPlugin, MCPServersResponse } from 'librechat-data-provider';
 import type { ConfigFieldDetail } from '~/common';
-import { useLocalize, useMCPSelect, useMCPConnectionStatus } from '~/hooks';
+import { useLocalize, useHasAccess, useMCPSelect, useMCPConnectionStatus } from '~/hooks';
 import { useGetStartupConfig, useMCPServersQuery } from '~/data-provider';
 import { mcpServerInitStatesAtom, getServerInitState } from '~/store/mcp';
 import type { MCPServerInitState } from '~/store/mcp';
@@ -35,12 +42,19 @@ export function useMCPServerManager({
   const localize = useLocalize();
   const queryClient = useQueryClient();
   const { showToast } = useToastContext();
-  const { data: startupConfig } = useGetStartupConfig(); // Keep for UI config only
+  /** Retained for `interface.mcpServers.placeholder` used by `placeholderText` below */
+  const { data: startupConfig } = useGetStartupConfig();
+  const canUseMcp = useHasAccess({
+    permissionType: PermissionTypes.MCP_SERVERS,
+    permission: Permissions.USE,
+  });
 
-  const { data: loadedServers, isLoading } = useMCPServersQuery();
+  const { data: loadedServers, isLoading } = useMCPServersQuery({ enabled: canUseMcp });
 
   // Fetch effective permissions for all MCP servers
-  const { data: permissionsMap } = useGetAllEffectivePermissionsQuery(ResourceType.MCPSERVER);
+  const { data: permissionsMap } = useGetAllEffectivePermissionsQuery(ResourceType.MCPSERVER, {
+    enabled: canUseMcp,
+  });
 
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [selectedToolForConfig, setSelectedToolForConfig] = useState<TPlugin | null>(null);
@@ -433,33 +447,6 @@ export function useMCPServerManager({
     [startupConfig?.interface?.mcpServers?.placeholder, localize],
   );
 
-  const batchToggleServers = useCallback(
-    (serverNames: string[]) => {
-      const connectedServers: string[] = [];
-      const disconnectedServers: string[] = [];
-
-      serverNames.forEach((serverName) => {
-        if (isInitializing(serverName)) {
-          return;
-        }
-
-        const serverStatus = connectionStatus?.[serverName];
-        if (serverStatus?.connectionState === 'connected') {
-          connectedServers.push(serverName);
-        } else {
-          disconnectedServers.push(serverName);
-        }
-      });
-
-      setMCPValues(connectedServers);
-
-      disconnectedServers.forEach((serverName) => {
-        initializeServer(serverName);
-      });
-    },
-    [connectionStatus, setMCPValues, initializeServer, isInitializing],
-  );
-
   const toggleServerSelection = useCallback(
     (serverName: string) => {
       if (isInitializing(serverName)) {
@@ -473,15 +460,10 @@ export function useMCPServerManager({
         const filteredValues = currentValues.filter((name) => name !== serverName);
         setMCPValues(filteredValues);
       } else {
-        const serverStatus = connectionStatus?.[serverName];
-        if (serverStatus?.connectionState === 'connected') {
-          setMCPValues([...currentValues, serverName]);
-        } else {
-          initializeServer(serverName);
-        }
+        setMCPValues([...currentValues, serverName]);
       }
     },
-    [mcpValues, setMCPValues, connectionStatus, initializeServer, isInitializing],
+    [mcpValues, setMCPValues, isInitializing],
   );
 
   const handleConfigSave = useCallback(
@@ -677,7 +659,6 @@ export function useMCPServerManager({
     isPinned,
     setIsPinned,
     placeholderText,
-    batchToggleServers,
     toggleServerSelection,
     localize,
 

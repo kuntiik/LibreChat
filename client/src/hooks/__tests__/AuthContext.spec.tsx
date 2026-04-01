@@ -1,142 +1,447 @@
-import React, { useEffect } from 'react';
-import { act, render } from '@testing-library/react';
+/**
+ * @jest-environment @happy-dom/jest-environment
+ */
+import React from 'react';
+import { render, act } from '@testing-library/react';
 import { RecoilRoot } from 'recoil';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { AuthContextProvider, useAuthContext } from '../AuthContext';
-import { setTokenHeader } from 'librechat-data-provider';
 
-const mockUseGetRole = jest.fn();
-const mockUseGetUserQuery = jest.fn();
-const mockUseLoginUserMutation = jest.fn();
-const mockUseLogoutUserMutation = jest.fn();
-const mockUseRefreshTokenMutation = jest.fn();
+import type { TAuthConfig } from '~/common';
+
+import { AuthContextProvider, useAuthContext } from '../AuthContext';
+import { SESSION_KEY } from '~/utils';
+
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
+}));
+
+const mockApiBaseUrl = jest.fn(() => '');
+
+jest.mock('librechat-data-provider', () => ({
+  ...jest.requireActual('librechat-data-provider'),
+  setTokenHeader: jest.fn(),
+  apiBaseUrl: () => mockApiBaseUrl(),
+}));
+
+let mockCapturedLoginOptions: {
+  onSuccess: (...args: unknown[]) => void;
+  onError: (...args: unknown[]) => void;
+};
+
+let mockCapturedLogoutOptions: {
+  onSuccess: (...args: unknown[]) => void;
+  onError: (...args: unknown[]) => void;
+};
+
+const mockRefreshMutate = jest.fn();
 
 jest.mock('~/data-provider', () => ({
-  useGetRole: (...args: unknown[]) => mockUseGetRole(...args),
-  useGetUserQuery: (...args: unknown[]) => mockUseGetUserQuery(...args),
-  useLoginUserMutation: (...args: unknown[]) => mockUseLoginUserMutation(...args),
-  useLogoutUserMutation: (...args: unknown[]) => mockUseLogoutUserMutation(...args),
-  useRefreshTokenMutation: (...args: unknown[]) => mockUseRefreshTokenMutation(...args),
+  useLoginUserMutation: jest.fn(
+    (options: {
+      onSuccess: (...args: unknown[]) => void;
+      onError: (...args: unknown[]) => void;
+    }) => {
+      mockCapturedLoginOptions = options;
+      return { mutate: jest.fn() };
+    },
+  ),
+  useLogoutUserMutation: jest.fn(
+    (options: {
+      onSuccess: (...args: unknown[]) => void;
+      onError: (...args: unknown[]) => void;
+    }) => {
+      mockCapturedLogoutOptions = options;
+      return { mutate: jest.fn() };
+    },
+  ),
+  useRefreshTokenMutation: jest.fn(() => ({ mutate: mockRefreshMutate })),
+  useGetUserQuery: jest.fn(() => ({
+    data: undefined,
+    isError: false,
+    error: null,
+  })),
+  useGetRole: jest.fn(() => ({ data: null })),
 }));
 
-jest.mock('~/store', () => ({
-  __esModule: true,
-  default: {
-    user: jest.requireActual('recoil').atom({
-      key: 'test_auth_context_user_atom',
-      default: undefined,
-    }),
-  },
-}));
+const authConfig: TAuthConfig = { loginRedirect: '/login', test: true };
 
-jest.mock('librechat-data-provider', () => {
-  const actual = jest.requireActual('librechat-data-provider');
-  return {
-    ...actual,
-    setTokenHeader: jest.fn(),
-  };
-});
+function TestConsumer() {
+  const ctx = useAuthContext();
+  return <div data-testid="consumer" data-authenticated={ctx.isAuthenticated} />;
+}
 
-describe('AuthContext stale refresh protection', () => {
-  let latestContext: ReturnType<typeof useAuthContext> | undefined;
+function renderProvider() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
 
-  const Probe = () => {
-    const context = useAuthContext();
-    useEffect(() => {
-      latestContext = context;
-    }, [context]);
-    return null;
-  };
-
-  const renderProvider = () =>
-    render(
-      <MemoryRouter>
-        <RecoilRoot>
-          <AuthContextProvider>
-            <Probe />
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RecoilRoot>
+        <MemoryRouter>
+          <AuthContextProvider authConfig={authConfig}>
+            <TestConsumer />
           </AuthContextProvider>
-        </RecoilRoot>
-      </MemoryRouter>,
-    );
+        </MemoryRouter>
+      </RecoilRoot>
+    </QueryClientProvider>,
+  );
+}
 
+/** Renders without test:true so silentRefresh actually runs */
+function renderProviderLive() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RecoilRoot>
+        <MemoryRouter>
+          <AuthContextProvider authConfig={{ loginRedirect: '/login' }}>
+            <TestConsumer />
+          </AuthContextProvider>
+        </MemoryRouter>
+      </RecoilRoot>
+    </QueryClientProvider>,
+  );
+}
+
+describe('AuthContextProvider — login onError redirect handling', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
-    latestContext = undefined;
-
-    mockUseGetRole.mockReturnValue({ data: null });
-    mockUseGetUserQuery.mockReturnValue({
-      data: undefined,
-      isError: false,
-      error: null,
-    });
-    mockUseLogoutUserMutation.mockReturnValue({
-      mutate: jest.fn(),
-    });
+    window.history.replaceState({}, '', '/login');
   });
 
   afterEach(() => {
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('preserves a valid redirect_to param across login failure', () => {
+    window.history.replaceState({}, '', '/login?redirect_to=%2Fc%2Fabc123');
+
+    renderProvider();
+
+    act(() => {
+      mockCapturedLoginOptions.onError({ message: 'Invalid credentials' });
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/login?redirect_to=%2Fc%2Fabc123', {
+      replace: true,
+    });
+  });
+
+  it('drops redirect_to when it contains an absolute URL (open-redirect prevention)', () => {
+    window.history.replaceState({}, '', '/login?redirect_to=https%3A%2F%2Fevil.com');
+
+    renderProvider();
+
+    act(() => {
+      mockCapturedLoginOptions.onError({ message: 'Invalid credentials' });
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+  });
+
+  it('drops redirect_to when it points to /login (recursive redirect prevention)', () => {
+    window.history.replaceState({}, '', '/login?redirect_to=%2Flogin');
+
+    renderProvider();
+
+    act(() => {
+      mockCapturedLoginOptions.onError({ message: 'Invalid credentials' });
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+  });
+
+  it('navigates to plain /login when no redirect_to param exists', () => {
+    renderProvider();
+
+    act(() => {
+      mockCapturedLoginOptions.onError({ message: 'Server error' });
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+  });
+
+  it('preserves redirect_to with query params and hash', () => {
+    const target = '/c/abc123?model=gpt-4#section';
+    window.history.replaceState({}, '', `/login?redirect_to=${encodeURIComponent(target)}`);
+
+    renderProvider();
+
+    act(() => {
+      mockCapturedLoginOptions.onError({ message: 'Invalid credentials' });
+    });
+
+    const navigatedUrl = mockNavigate.mock.calls[0][0] as string;
+    const params = new URLSearchParams(navigatedUrl.split('?')[1]);
+    expect(decodeURIComponent(params.get('redirect_to')!)).toBe(target);
+  });
+});
+
+describe('AuthContextProvider — logout onSuccess/onError handling', () => {
+  const mockSetTokenHeader = jest.requireMock('librechat-data-provider').setTokenHeader;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    window.history.replaceState({}, '', '/c/some-chat');
+  });
+
+  afterEach(() => {
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('calls window.location.replace and setTokenHeader(undefined) when redirect is present', () => {
+    const replaceSpy = jest.spyOn(window.location, 'replace').mockImplementation(() => {});
+
+    renderProvider();
+
+    act(() => {
+      mockCapturedLogoutOptions.onSuccess({
+        message: 'Logout successful',
+        redirect: 'https://idp.example.com/logout?id_token_hint=abc',
+      });
+    });
+
+    expect(replaceSpy).toHaveBeenCalledWith('https://idp.example.com/logout?id_token_hint=abc');
+    expect(mockSetTokenHeader).toHaveBeenCalledWith(undefined);
+  });
+
+  it('does not call window.location.replace when redirect is absent', async () => {
+    const replaceSpy = jest.spyOn(window.location, 'replace').mockImplementation(() => {});
+
+    renderProvider();
+
+    act(() => {
+      mockCapturedLogoutOptions.onSuccess({ message: 'Logout successful' });
+    });
+
+    expect(replaceSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not trigger silentRefresh after OIDC redirect', () => {
+    const replaceSpy = jest.spyOn(window.location, 'replace').mockImplementation(() => {});
+
+    renderProviderLive();
+    mockRefreshMutate.mockClear();
+
+    act(() => {
+      mockCapturedLogoutOptions.onSuccess({
+        message: 'Logout successful',
+        redirect: 'https://idp.example.com/logout?id_token_hint=abc',
+      });
+    });
+
+    expect(replaceSpy).toHaveBeenCalled();
+    expect(mockRefreshMutate).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthContextProvider — silentRefresh post-login redirect', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('navigates to stored sessionStorage redirect after successful token refresh', () => {
+    jest.useFakeTimers();
+    sessionStorage.setItem(SESSION_KEY, '/c/new?endpoint=bedrock&model=claude-sonnet-4-6');
+
+    renderProviderLive();
+
+    expect(mockRefreshMutate).toHaveBeenCalledTimes(1);
+    const [, refreshOptions] = mockRefreshMutate.mock.calls[0] as [
+      unknown,
+      { onSuccess: (data: unknown) => void },
+    ];
+
+    act(() => {
+      refreshOptions.onSuccess({ user: { id: '1', role: 'USER' }, token: 'new-token' });
+    });
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/c/new?endpoint=bedrock&model=claude-sonnet-4-6', {
+      replace: true,
+    });
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
     jest.useRealTimers();
   });
 
-  test('applies refresh token response when there is no newer auth flow', () => {
-    const loginMutate = jest.fn();
-    let refreshHandlers: { onSuccess?: (data: unknown) => void } | undefined;
-    const refreshMutate = jest.fn((_vars, handlers) => {
-      refreshHandlers = handlers;
-    });
+  it('navigates to current URL when no stored redirect exists', () => {
+    jest.useFakeTimers();
+    window.history.replaceState({}, '', '/c/new');
 
-    mockUseLoginUserMutation.mockReturnValue({ mutate: loginMutate });
-    mockUseRefreshTokenMutation.mockReturnValue({ mutate: refreshMutate });
+    renderProviderLive();
 
-    renderProvider();
-
-    expect(refreshMutate).toHaveBeenCalled();
-    expect(refreshHandlers?.onSuccess).toBeDefined();
+    expect(mockRefreshMutate).toHaveBeenCalledTimes(1);
+    const [, refreshOptions] = mockRefreshMutate.mock.calls[0] as [
+      unknown,
+      { onSuccess: (data: unknown) => void },
+    ];
 
     act(() => {
-      refreshHandlers?.onSuccess?.({
-        token: 'fresh-token',
-        user: { id: 'me', role: 'USER', email: 'me@example.com' },
-      });
-      jest.advanceTimersByTime(60);
+      refreshOptions.onSuccess({ user: { id: '1', role: 'USER' }, token: 'new-token' });
+    });
+    act(() => {
+      jest.advanceTimersByTime(100);
     });
 
-    expect(setTokenHeader).toHaveBeenLastCalledWith('fresh-token');
+    expect(mockNavigate).toHaveBeenCalledWith('/c/new', { replace: true });
+    jest.useRealTimers();
   });
 
-  test('ignores stale refresh response after login starts', () => {
-    const loginMutate = jest.fn();
-    let refreshHandlers: { onSuccess?: (data: unknown) => void } | undefined;
-    const refreshMutate = jest.fn((_vars, handlers) => {
-      refreshHandlers = handlers;
-    });
+  it('does not re-trigger silentRefresh after successful redirect', () => {
+    jest.useFakeTimers();
+    sessionStorage.setItem(SESSION_KEY, '/c/abc?endpoint=bedrock');
 
-    mockUseLoginUserMutation.mockReturnValue({ mutate: loginMutate });
-    mockUseRefreshTokenMutation.mockReturnValue({ mutate: refreshMutate });
+    renderProviderLive();
 
-    renderProvider();
-
-    expect(latestContext).toBeDefined();
-    expect(refreshHandlers?.onSuccess).toBeDefined();
+    expect(mockRefreshMutate).toHaveBeenCalledTimes(1);
+    const [, refreshOptions] = mockRefreshMutate.mock.calls[0] as [
+      unknown,
+      { onSuccess: (data: unknown) => void },
+    ];
+    mockRefreshMutate.mockClear();
 
     act(() => {
-      latestContext?.login({
-        email: 'me@example.com',
-        password: 'password123',
-      });
+      refreshOptions.onSuccess({ user: { id: '1', role: 'USER' }, token: 'new-token' });
+    });
+    act(() => {
+      jest.advanceTimersByTime(100);
     });
 
-    expect(loginMutate).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/c/abc?endpoint=bedrock', { replace: true });
+    expect(mockRefreshMutate).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('falls back to current URL for unsafe stored redirect', () => {
+    jest.useFakeTimers();
+    window.history.replaceState({}, '', '/c/new');
+    sessionStorage.setItem(SESSION_KEY, 'https://evil.com/steal');
+
+    renderProviderLive();
+
+    expect(mockRefreshMutate).toHaveBeenCalledTimes(1);
+    const [, refreshOptions] = mockRefreshMutate.mock.calls[0] as [
+      unknown,
+      { onSuccess: (data: unknown) => void },
+    ];
 
     act(() => {
-      refreshHandlers?.onSuccess?.({
-        token: 'stale-token',
-        user: { id: 'other-user', role: 'USER', email: 'other@example.com' },
-      });
-      jest.advanceTimersByTime(60);
+      refreshOptions.onSuccess({ user: { id: '1', role: 'USER' }, token: 'new-token' });
+    });
+    act(() => {
+      jest.advanceTimersByTime(100);
     });
 
-    expect(setTokenHeader).not.toHaveBeenCalledWith('stale-token');
+    expect(mockNavigate).toHaveBeenCalledWith('/c/new', { replace: true });
+    expect(mockNavigate).not.toHaveBeenCalledWith('https://evil.com/steal', expect.anything());
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    jest.useRealTimers();
+  });
+});
+
+describe('AuthContextProvider — silentRefresh subdirectory deployment', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    sessionStorage.clear();
+    mockApiBaseUrl.mockReturnValue('/chat');
+  });
+
+  afterEach(() => {
+    mockApiBaseUrl.mockReturnValue('');
+    sessionStorage.clear();
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('strips base path from window.location.pathname before navigating (prevents /chat/chat doubling)', () => {
+    jest.useFakeTimers();
+    window.history.replaceState({}, '', '/chat/c/abc123?model=gpt-4');
+
+    renderProviderLive();
+
+    expect(mockRefreshMutate).toHaveBeenCalledTimes(1);
+    const [, refreshOptions] = mockRefreshMutate.mock.calls[0] as [
+      unknown,
+      { onSuccess: (data: unknown) => void },
+    ];
+
+    act(() => {
+      refreshOptions.onSuccess({ user: { id: '1', role: 'USER' }, token: 'new-token' });
+    });
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/c/abc123?model=gpt-4', { replace: true });
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat/c/'),
+      expect.anything(),
+    );
+    jest.useRealTimers();
+  });
+
+  it('falls back to root when window.location.pathname equals the base path', () => {
+    jest.useFakeTimers();
+    window.history.replaceState({}, '', '/chat');
+
+    renderProviderLive();
+
+    const [, refreshOptions] = mockRefreshMutate.mock.calls[0] as [
+      unknown,
+      { onSuccess: (data: unknown) => void },
+    ];
+
+    act(() => {
+      refreshOptions.onSuccess({ user: { id: '1', role: 'USER' }, token: 'new-token' });
+    });
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
+    jest.useRealTimers();
+  });
+});
+
+describe('AuthContextProvider — logout error handling', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    window.history.replaceState({}, '', '/c/some-chat');
+  });
+
+  afterEach(() => {
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('clears auth state on logout error without external redirect', () => {
+    jest.useFakeTimers();
+    const replaceSpy = jest.spyOn(window.location, 'replace').mockImplementation(() => {});
+    const { getByTestId } = renderProvider();
+
+    act(() => {
+      mockCapturedLogoutOptions.onError(new Error('Logout failed'));
+    });
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(replaceSpy).not.toHaveBeenCalled();
+    expect(getByTestId('consumer').getAttribute('data-authenticated')).toBe('false');
+    jest.useRealTimers();
   });
 });

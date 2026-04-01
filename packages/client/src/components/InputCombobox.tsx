@@ -9,6 +9,7 @@ type ComboboxProps = {
   options: OptionWithIcon[] | string[];
   className?: string;
   labelClassName?: string;
+  suppressFocusRing?: boolean;
   value: string;
   onChange: (value: string) => void;
   onBlur: () => void;
@@ -23,6 +24,7 @@ export const InputCombobox: React.FC<ComboboxProps> = ({
   value,
   onChange,
   onBlur,
+  suppressFocusRing = false,
 }) => {
   const isOptionObject = (option: unknown): option is OptionWithIcon => {
     return option != null && typeof option === 'object' && 'value' in option;
@@ -50,7 +52,12 @@ export const InputCombobox: React.FC<ComboboxProps> = ({
           {label}
         </Ariakit.ComboboxLabel>
       )}
-      <div className={cn('relative', isKeyboardFocus ? 'rounded-md ring-2 ring-ring-primary' : '')}>
+      <div
+        className={cn(
+          'relative',
+          !suppressFocusRing && isKeyboardFocus ? 'rounded-md ring-2 ring-ring-primary' : '',
+        )}
+      >
         <Ariakit.Combobox
           placeholder={placeholder}
           className={cn(

@@ -1,6 +1,11 @@
 const FormData = require('form-data');
 const { getCodeBaseURL } = require('@librechat/agents');
-const { createAxiosInstance, logAxiosError } = require('@librechat/api');
+const {
+  logAxiosError,
+  createAxiosInstance,
+  codeServerHttpAgent,
+  codeServerHttpsAgent,
+} = require('@librechat/api');
 
 const axios = createAxiosInstance();
 
@@ -25,6 +30,8 @@ async function getCodeOutputDownloadStream(fileIdentifier, apiKey) {
         'User-Agent': 'LibreChat/1.0',
         'X-API-Key': apiKey,
       },
+      httpAgent: codeServerHttpAgent,
+      httpsAgent: codeServerHttpsAgent,
       timeout: 15000,
     };
 
@@ -69,6 +76,9 @@ async function uploadCodeEnvFile({ req, stream, filename, apiKey, entity_id = ''
         'User-Id': req.user.id,
         'X-API-Key': apiKey,
       },
+      httpAgent: codeServerHttpAgent,
+      httpsAgent: codeServerHttpsAgent,
+      timeout: 120000,
       maxContentLength: MAX_FILE_SIZE,
       maxBodyLength: MAX_FILE_SIZE,
     };
@@ -81,7 +91,15 @@ async function uploadCodeEnvFile({ req, stream, filename, apiKey, entity_id = ''
       throw new Error(`Error uploading file: ${result.message}`);
     }
 
-    const fileIdentifier = `${result.session_id}/${result.files[0].fileId}`;
+    const sessionId = result.session_id ?? result.sessionId;
+    const uploadedFile = result.files?.[0] ?? {};
+    const fileId = uploadedFile.fileId ?? uploadedFile.file_id ?? uploadedFile.id;
+
+    if (!sessionId || !fileId) {
+      throw new Error('Error uploading file: malformed code environment response');
+    }
+
+    const fileIdentifier = `${sessionId}/${fileId}`;
     if (entity_id.length === 0) {
       return fileIdentifier;
     }

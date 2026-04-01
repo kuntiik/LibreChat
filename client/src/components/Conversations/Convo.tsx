@@ -181,10 +181,10 @@ export default function Conversation({
     <div
       ref={containerRef}
       className={cn(
-        'group relative flex h-12 w-full items-center rounded-lg outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white md:h-9',
+        'group relative flex h-12 w-full items-center rounded-lg outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--border-focus)] md:h-9',
         isActiveConvo || isPopoverActive
-          ? 'bg-surface-active-alt before:absolute before:bottom-1 before:left-0 before:top-1 before:w-0.5 before:rounded-full before:bg-black dark:before:bg-white'
-          : 'hover:bg-surface-active-alt',
+          ? 'bg-surface-active-alt text-[var(--brand-primary)] before:absolute before:bottom-1 before:left-0 before:top-1 before:w-0.5 before:rounded-full before:bg-[var(--brand-primary)]'
+          : 'text-text-primary hover:bg-surface-active-alt hover:text-[var(--brand-primary)]',
       )}
       role="button"
       tabIndex={renaming ? -1 : 0}
@@ -237,7 +237,7 @@ export default function Conversation({
         >
           {isGenerating ? (
             <svg
-              className="h-5 w-5 flex-shrink-0 animate-spin text-text-primary"
+              className="h-5 w-5 flex-shrink-0 animate-spin text-current"
               viewBox="0 0 24 24"
               fill="none"
               aria-label={localize('com_ui_generating')}
@@ -262,6 +262,12 @@ export default function Conversation({
               endpointsConfig={endpointsConfig}
               size={20}
               context="menu-item"
+              className={cn(
+                'mr-0 transition-colors',
+                isActiveConvo || isPopoverActive
+                  ? '!text-[var(--brand-primary)]'
+                  : 'group-hover:!text-[var(--brand-primary)] group-focus-within:!text-[var(--brand-primary)]',
+              )}
             />
           )}
         </ConvoLink>

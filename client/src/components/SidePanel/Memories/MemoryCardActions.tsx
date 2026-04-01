@@ -33,7 +33,7 @@ export default function MemoryCardActions({ memory }: MemoryCardActionsProps) {
   const buttonBaseClass = cn(
     'flex size-7 items-center justify-center rounded-md',
     'transition-colors duration-150',
-    'text-text-secondary hover:text-text-primary',
+    'text-text-secondary hover:text-[var(--brand-primary)] group-hover/card:text-[var(--brand-primary)]',
     'hover:bg-surface-tertiary',
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
   );

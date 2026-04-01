@@ -6,6 +6,7 @@ import { useChatContext } from '~/Providers';
 import OptionHover from './OptionHover';
 import { ESide } from '~/common';
 import { cn } from '~/utils';
+import { isBrandedParameterInputKey } from './keys';
 
 function DynamicCombobox({
   label = '',
@@ -31,6 +32,7 @@ function DynamicCombobox({
   const localize = useLocalize();
   const { preset } = useChatContext();
   const [inputValue, setInputValue] = useState<string | null>(null);
+  const useBrandedInputColors = isBrandedParameterInputKey(settingKey);
 
   const selectedValue = useMemo(() => {
     return conversation?.[settingKey] ?? defaultValue;
@@ -82,7 +84,7 @@ function DynamicCombobox({
             <div className="flex w-full justify-between">
               <Label
                 htmlFor={`${settingKey}-dynamic-combobox`}
-                className="text-left text-sm font-medium"
+                className="text-left text-xs font-medium"
               >
                 {labelCode ? (localize(label as TranslationKeys) ?? label) : label || settingKey}
                 {showDefault && (
@@ -111,6 +113,10 @@ function DynamicCombobox({
             setValue={handleChange}
             items={items}
             SelectIcon={SelectIcon}
+            className={cn(
+              'unified-sidebar-dropdown',
+              useBrandedInputColors && 'unified-sidebar-special-input',
+            )}
           />
         </HoverCardTrigger>
         {description && (

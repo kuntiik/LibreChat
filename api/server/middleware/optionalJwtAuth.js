@@ -1,9 +1,9 @@
 const passport = require('passport');
-const { isEnabled } = require('@librechat/api');
-const { parseCookiesWithLastValue } = require('~/server/utils/cookies');
+const { isEnabled, tenantContextMiddleware } = require('@librechat/api');
 
 // This middleware does not require authentication,
-// but if the user is authenticated, it will set the user object.
+// but if the user is authenticated, it will set the user object
+// and establish tenant ALS context.
 const optionalJwtAuth = (req, res, next) => {
   const cookieHeader = req.headers.cookie;
   const tokenProvider = parseCookiesWithLastValue(cookieHeader).token_provider;
@@ -13,6 +13,7 @@ const optionalJwtAuth = (req, res, next) => {
     }
     if (user) {
       req.user = user;
+      return tenantContextMiddleware(req, res, next);
     }
     next();
   };

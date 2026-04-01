@@ -6,6 +6,7 @@ import { useLocalize, useDebouncedInput, useParameterEffects, TranslationKeys } 
 import { cn, defaultTextProps, optionText } from '~/utils';
 import { ESide, defaultDebouncedDelay } from '~/common';
 import { useChatContext } from '~/Providers';
+import { isBrandedParameterInputKey } from './keys';
 import OptionHover from './OptionHover';
 
 function DynamicSlider({
@@ -144,6 +145,30 @@ function DynamicSlider({
     }
   }, [isEnum, options, range]);
 
+  const min = range?.min ?? 0;
+  const step = range?.step ?? 1;
+
+  const sliderValue = useMemo(() => {
+    if (isEnum) {
+      const enumValue = enumToNumeric[String(selectedValue ?? '')];
+      return Number.isFinite(enumValue) ? enumValue : min;
+    }
+
+    const numericInput = typeof inputValue === 'number' ? inputValue : Number.NaN;
+    if (Number.isFinite(numericInput)) {
+      return Math.min(max, Math.max(min, numericInput));
+    }
+
+    const numericDefault = typeof defaultValue === 'number' ? defaultValue : Number.NaN;
+    if (Number.isFinite(numericDefault)) {
+      return Math.min(max, Math.max(min, numericDefault));
+    }
+
+    return min;
+  }, [defaultValue, enumToNumeric, inputValue, isEnum, max, min, selectedValue]);
+
+  const useBrandedInputColors = isBrandedParameterInputKey(settingKey);
+
   if (!range && !isEnum) {
     return null;
   }
@@ -160,7 +185,7 @@ function DynamicSlider({
           <div className="flex w-full items-center justify-between">
             <Label
               htmlFor={`${settingKey}-dynamic-setting`}
-              className="break-words text-left text-sm font-medium"
+              className="break-words text-left text-xs font-medium"
             >
               {labelCode ? (localize(label as TranslationKeys) ?? label) : label || settingKey}{' '}
               {showDefault && (
@@ -173,8 +198,14 @@ function DynamicSlider({
               <InputNumber
                 id={`${settingKey}-dynamic-setting-input-number`}
                 disabled={readonly}
-                value={inputValue ?? defaultValue}
-                onChange={(value) => setInputValue(Number(value))}
+                value={sliderValue}
+                onChange={(value) => {
+                  const numericValue = Number(value);
+                  if (!Number.isFinite(numericValue)) {
+                    return;
+                  }
+                  setInputValue(Math.min(max, Math.max(min, numericValue)));
+                }}
                 max={range ? range.max : (options?.length ?? 0) - 1}
                 min={range ? range.min : 0}
                 step={range ? (range.step ?? 1) : 1}
@@ -185,6 +216,9 @@ function DynamicSlider({
                   cn(
                     optionText,
                     'reset-rc-number-input reset-rc-number-input-text-right h-auto w-12 border-0 py-1 text-xs group-hover/temp:border-gray-200',
+                    useBrandedInputColors
+                      ? 'unified-sidebar-special-input [&_input]:!bg-transparent [&_input]:!text-white'
+                      : 'bg-transparent text-[#4b5563] hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
                   ),
                 )}
               />
@@ -200,6 +234,9 @@ function DynamicSlider({
                   cn(
                     optionText,
                     'reset-rc-number-input h-auto w-14 border-0 py-1 pl-1 text-center text-xs group-hover/temp:border-gray-200',
+                    useBrandedInputColors
+                      ? 'unified-sidebar-special-input'
+                      : 'bg-transparent text-[#4b5563] hover:bg-transparent focus:bg-transparent dark:hover:bg-transparent dark:focus:bg-transparent',
                   ),
                 )}
               />
@@ -208,17 +245,31 @@ function DynamicSlider({
           <Slider
             id={`${settingKey}-dynamic-setting-slider`}
             disabled={readonly}
-            value={[
-              isEnum
-                ? enumToNumeric[(selectedValue as number) ?? '']
-                : ((inputValue as number) ?? (defaultValue as number)),
-            ]}
-            onValueChange={(value) => handleValueChange(value[0])}
-            onDoubleClick={() => setInputValue(defaultValue as string | number)}
+            value={[sliderValue]}
+            onValueChange={(value) => {
+              if (!Number.isFinite(value[0])) {
+                return;
+              }
+              handleValueChange(value[0]);
+            }}
+            onDoubleClick={() => {
+              if (isEnum) {
+                if (defaultValue != null) {
+                  setInputValue(defaultValue as string | number);
+                }
+                return;
+              }
+
+              const resetValue =
+                typeof defaultValue === 'number' && Number.isFinite(defaultValue)
+                  ? defaultValue
+                  : min;
+              setInputValue(resetValue);
+            }}
             max={max}
             aria-label={localize(label as TranslationKeys)}
-            min={range ? range.min : 0}
-            step={range ? (range.step ?? 1) : 1}
+            min={min}
+            step={step}
             className="flex h-4 w-full"
           />
         </HoverCardTrigger>

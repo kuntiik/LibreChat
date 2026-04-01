@@ -77,17 +77,20 @@ export default function BookmarkCard({ bookmark, position, moveRow }: BookmarkCa
     <div
       ref={ref}
       className={cn(
-        'flex cursor-move items-center gap-2 rounded-lg px-3 py-2.5',
+        'group/card flex cursor-move items-center gap-2 rounded-lg px-3 py-2.5',
         'border border-border-light bg-transparent',
-        'hover:bg-surface-secondary',
+        'hover:bg-surface-hover',
         isDragging && 'opacity-50',
       )}
     >
       {/* Drag handle */}
-      <GripVertical className="size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
+      <GripVertical
+        className="size-4 shrink-0 text-text-tertiary group-hover/card:text-[var(--brand-primary)]"
+        aria-hidden="true"
+      />
 
       {/* Tag name */}
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary group-hover/card:text-[var(--brand-primary)]">
         {bookmark.tag}
       </span>
 
@@ -96,7 +99,7 @@ export default function BookmarkCard({ bookmark, position, moveRow }: BookmarkCa
         description={`${bookmark.count} ${localize(bookmark.count === 1 ? 'com_ui_conversation' : 'com_ui_conversations')}`}
         side="top"
         render={
-          <span className="shrink-0 rounded-full bg-surface-tertiary px-2 py-0.5 text-xs text-text-secondary">
+          <span className="shrink-0 rounded-full bg-surface-tertiary px-2 py-0.5 text-xs text-text-secondary group-hover/card:text-[var(--brand-primary)]">
             {bookmark.count}
           </span>
         }

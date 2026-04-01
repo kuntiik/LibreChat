@@ -109,16 +109,16 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
   return (
     <div
       ref={ref}
-      className="group relative my-1 flex h-10 cursor-pointer items-center gap-3 rounded-lg border-2 border-transparent px-3 py-2 text-text-primary focus-within:border-ring-primary focus-within:bg-surface-active-alt hover:bg-surface-active-alt"
+      className="group relative flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg border border-transparent bg-[#d1d6dc] px-3 py-1.5 text-text-primary focus-within:border-ring-primary focus-within:bg-[#d1d6dc] hover:bg-[#d1d6dc]"
     >
       <Search
         aria-hidden="true"
-        className="absolute left-3 h-4 w-4 text-text-secondary group-focus-within:text-text-primary group-hover:text-text-primary"
+        className="absolute left-3 h-4 w-4 text-[var(--brand-primary)] group-focus-within:text-[var(--brand-primary)] group-hover:text-[var(--brand-primary)]"
       />
       <input
         type="text"
         ref={inputRef}
-        className="m-0 mr-0 w-full border-none bg-transparent p-0 pl-7 text-sm leading-tight placeholder-text-secondary placeholder-opacity-100 focus-visible:outline-none group-focus-within:placeholder-text-primary group-hover:placeholder-text-primary"
+        className="m-0 mr-0 w-full border-none bg-transparent p-0 pl-7 text-sm leading-tight text-[var(--brand-primary)] placeholder-[rgba(0,37,84,0.72)] placeholder-opacity-100 focus-visible:outline-none group-focus-within:placeholder-[rgba(0,37,84,0.72)] group-hover:placeholder-[rgba(0,37,84,0.72)]"
         value={text}
         onChange={onChange}
         onKeyDown={(e) => {
@@ -136,7 +136,7 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
         type="button"
         aria-label={localize('com_ui_clear_search')}
         className={cn(
-          'absolute right-[7px] flex h-5 w-5 items-center justify-center rounded-full border-none bg-transparent p-0 transition-opacity duration-200',
+          'absolute right-[7px] flex h-5 w-5 items-center justify-center rounded-full border-none bg-transparent p-0 text-[var(--brand-primary)] transition-opacity duration-200',
           showClearIcon ? 'opacity-100' : 'opacity-0',
           isSmallScreen === true ? 'right-[16px]' : '',
         )}
