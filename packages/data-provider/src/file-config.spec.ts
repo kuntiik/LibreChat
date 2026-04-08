@@ -266,11 +266,11 @@ describe('getEndpointFileConfig', () => {
       });
 
       /**
-       * Should use base agents config (fileLimit: 10) since it exists in baseFileConfig
+       * Should use base agents config (fileLimit: 20) since it exists in baseFileConfig
        * and custom endpoints fall back to agents
        */
       expect(result.disabled).toBe(false);
-      expect(result.fileLimit).toBe(10); /** From baseFileConfig.endpoints.agents */
+      expect(result.fileLimit).toBe(20); /** From baseFileConfig.endpoints.agents */
     });
 
     it('should prioritize specific custom endpoint over generic custom config', () => {
@@ -1075,7 +1075,7 @@ describe('getEndpointFileConfig', () => {
       expect(Array.isArray(result.supportedMimeTypes)).toBe(true);
       expect(result.supportedMimeTypes!.length).toBeGreaterThan(0);
       /** Should have other default fields */
-      expect(result.fileLimit).toBe(10);
+      expect(result.fileLimit).toBe(20);
       expect(result.disabled).toBe(false);
     });
   });

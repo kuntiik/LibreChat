@@ -391,8 +391,9 @@ export const mbToBytes = (mb: number): number => mb * megabyte;
 
 const defaultSizeLimit = mbToBytes(512);
 const defaultTokenLimit = 100000;
+const defaultFileLimit = 20;
 const assistantsFileConfig = {
-  fileLimit: 10,
+  fileLimit: defaultFileLimit,
   fileSizeLimit: defaultSizeLimit,
   totalSizeLimit: defaultSizeLimit,
   supportedMimeTypes,
@@ -405,14 +406,14 @@ export const fileConfig = {
     [EModelEndpoint.azureAssistants]: assistantsFileConfig,
     [EModelEndpoint.agents]: assistantsFileConfig,
     [EModelEndpoint.anthropic]: {
-      fileLimit: 10,
+      fileLimit: defaultFileLimit,
       fileSizeLimit: defaultSizeLimit,
       totalSizeLimit: defaultSizeLimit,
       supportedMimeTypes,
       disabled: false,
     },
     default: {
-      fileLimit: 10,
+      fileLimit: defaultFileLimit,
       fileSizeLimit: defaultSizeLimit,
       totalSizeLimit: defaultSizeLimit,
       supportedMimeTypes,
