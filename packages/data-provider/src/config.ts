@@ -278,13 +278,14 @@ export const defaultAgentCapabilities = [
   AgentCapabilities.chain,
   AgentCapabilities.ocr,
 ];
+export const defaultAgentsRecursionLimit = 127;
 
 export const agentsEndpointSchema = baseEndpointSchema
   .omit({ baseURL: true })
   .merge(
     z.object({
       /* agents specific */
-      recursionLimit: z.number().optional(),
+      recursionLimit: z.number().optional().default(defaultAgentsRecursionLimit),
       disableBuilder: z.boolean().optional().default(false),
       maxRecursionLimit: z.number().optional(),
       maxCitations: z.number().min(1).max(50).optional().default(30),
@@ -298,6 +299,7 @@ export const agentsEndpointSchema = baseEndpointSchema
     }),
   )
   .default({
+    recursionLimit: defaultAgentsRecursionLimit,
     disableBuilder: false,
     capabilities: defaultAgentCapabilities,
     maxCitations: 30,
