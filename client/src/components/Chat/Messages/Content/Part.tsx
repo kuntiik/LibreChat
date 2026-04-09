@@ -244,9 +244,16 @@ const Part = memo(function Part({
   } else if (part.type === ContentTypes.IMAGE_FILE) {
     const imageFile = part[ContentTypes.IMAGE_FILE];
     const cached = imageFile.file_id ? getCachedPreview(imageFile.file_id) : undefined;
+    const imagePath =
+      cached ??
+      imageFile.filepath ??
+      ((imageFile as { url?: string }).url != null ? (imageFile as { url?: string }).url : null);
+    if (!imagePath || imagePath.trim().length === 0) {
+      return null;
+    }
     return (
       <Image
-        imagePath={cached ?? imageFile.filepath}
+        imagePath={imagePath}
         altText={imageFile.filename ?? 'Uploaded Image'}
         width={imageFile.width}
         height={imageFile.height}

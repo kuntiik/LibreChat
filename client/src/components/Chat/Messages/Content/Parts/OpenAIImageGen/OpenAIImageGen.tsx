@@ -129,11 +129,25 @@ export default function OpenAIImageGen({
     height = undefined;
   }
 
-  const attachment = attachments?.[0];
+  const attachment = attachments?.find((item) => {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+    const candidate = item as TFile & { url?: string };
+    if (typeof candidate.filepath === 'string' && candidate.filepath.length > 0) {
+      return true;
+    }
+    return typeof candidate.url === 'string' && candidate.url.length > 0;
+  });
+
+  const attachmentFilepath =
+    (attachment as (TFile & { url?: string }) | undefined)?.filepath ??
+    (attachment as (TFile & { url?: string }) | undefined)?.url ??
+    null;
   const {
     width: imageWidth,
     height: imageHeight,
-    filepath = null,
+    filepath = attachmentFilepath,
     filename = '',
   } = (attachment as TFile & TAttachmentMetadata) || {};
 

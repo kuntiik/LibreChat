@@ -111,6 +111,32 @@ describe('OpenAIImageGen', () => {
       expect(screen.queryByTestId('image-component')).not.toBeInTheDocument();
     });
 
+    it('selects the first attachment that has an image path', () => {
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={1}
+          isSubmitting={false}
+          toolName="flux"
+          attachments={[
+            {
+              filename: 'meta.json',
+              conversationId: 'conv1',
+            } as never,
+            {
+              filename: 'cat.png',
+              filepath: '/images/cat-from-second-attachment.png',
+              conversationId: 'conv1',
+            } as never,
+          ]}
+        />,
+      );
+      expect(screen.getByTestId('image-component')).toHaveAttribute(
+        'data-src',
+        '/images/cat-from-second-attachment.png',
+      );
+    });
+
     it('falls back to markdown image path for flux when metadata is missing', () => {
       render(
         <OpenAIImageGen
