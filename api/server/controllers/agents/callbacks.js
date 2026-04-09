@@ -1,6 +1,6 @@
 const { nanoid } = require('nanoid');
 const { logger } = require('@librechat/data-schemas');
-const { Tools, StepTypes, FileContext, ErrorTypes } = require('librechat-data-provider');
+const { Tools, StepTypes, FileContext, ErrorTypes, imageGenTools } = require('librechat-data-provider');
 const {
   EnvVar,
   Constants,
@@ -303,6 +303,84 @@ function writeAttachment(res, streamId, attachment) {
   }
 }
 
+function getStringValue(value) {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function getArtifactImagePath(artifact) {
+  if (!artifact || typeof artifact !== 'object') {
+    return null;
+  }
+  return getStringValue(artifact.filepath) ?? getStringValue(artifact.url);
+}
+
+function isDataImageUrl(url) {
+  return typeof url === 'string' && url.startsWith('data:image/');
+}
+
+function isImageArtifact(output) {
+  if (!output || !output.artifact || typeof output.artifact !== 'object') {
+    return false;
+  }
+  const isImageTool = typeof output.name === 'string' && imageGenTools.has(output.name);
+  const hasImageType =
+    typeof output.artifact.type === 'string' && output.artifact.type.startsWith('image/');
+  const hasImagePath = getArtifactImagePath(output.artifact) != null;
+  return isImageTool || hasImageType || hasImagePath;
+}
+
+function buildImageAttachment({ artifact, output, metadata }) {
+  if (!artifact || typeof artifact !== 'object') {
+    return null;
+  }
+
+  const filepath = getArtifactImagePath(artifact);
+  if (!filepath) {
+    return null;
+  }
+
+  const file_id = artifact.file_id ?? artifact.fileId;
+  return {
+    file_id,
+    filename: artifact.filename,
+    type: artifact.type,
+    width: artifact.width,
+    height: artifact.height,
+    bytes: artifact.bytes,
+    source: artifact.source,
+    filepath,
+    url: filepath,
+    messageId: metadata.run_id,
+    message_id: metadata.run_id,
+    toolCallId: output.tool_call_id,
+    tool_call_id: output.tool_call_id,
+    conversationId: metadata.thread_id,
+  };
+}
+
+function buildResponsesFileAttachment(fileMetadata, output) {
+  if (!fileMetadata || typeof fileMetadata !== 'object') {
+    return null;
+  }
+
+  const filepath = getArtifactImagePath(fileMetadata);
+  if (!filepath) {
+    return null;
+  }
+
+  return {
+    file_id: fileMetadata.file_id ?? fileMetadata.fileId,
+    filename: fileMetadata.filename,
+    type: fileMetadata.type,
+    url: filepath,
+    filepath,
+    width: fileMetadata.width,
+    height: fileMetadata.height,
+    tool_call_id: output.tool_call_id,
+    toolCallId: output.tool_call_id,
+  };
+}
+
 /**
  *
  * @param {Object} params
@@ -396,6 +474,29 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
       );
     }
 
+    const directImageAttachment = isImageArtifact(output)
+      ? buildImageAttachment({
+          artifact: output.artifact,
+          output,
+          metadata,
+        })
+      : null;
+    if (directImageAttachment) {
+      artifactPromises.push(
+        (async () => {
+          if (!streamId && !res.headersSent) {
+            return directImageAttachment;
+          }
+          writeAttachment(res, streamId, directImageAttachment);
+          return directImageAttachment;
+        })().catch((error) => {
+          logger.error('Error processing image artifact metadata:', error);
+          return null;
+        }),
+      );
+      return;
+    }
+
     if (output.artifact.content) {
       /** @type {FormattedContent[]} */
       const content = output.artifact.content;
@@ -407,23 +508,39 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
         if (part.type !== 'image_url') {
           continue;
         }
-        const { url } = part.image_url;
+        const url = getStringValue(part.image_url?.url);
+        if (!url) {
+          continue;
+        }
         artifactPromises.push(
           (async () => {
             const filename = `${output.name}_img_${nanoid()}`;
             const file_id = output.artifact.file_ids?.[i];
-            const file = await saveBase64Image(url, {
-              req,
-              file_id,
-              filename,
-              endpoint: metadata.provider,
-              context: FileContext.image_generation,
-            });
-            const fileMetadata = Object.assign(file, {
-              messageId: metadata.run_id,
-              toolCallId: output.tool_call_id,
-              conversationId: metadata.thread_id,
-            });
+            let fileMetadata;
+            if (isDataImageUrl(url)) {
+              const file = await saveBase64Image(url, {
+                req,
+                file_id,
+                filename,
+                endpoint: metadata.provider,
+                context: FileContext.image_generation,
+              });
+              fileMetadata = Object.assign(file, {
+                messageId: metadata.run_id,
+                toolCallId: output.tool_call_id,
+                conversationId: metadata.thread_id,
+              });
+            } else {
+              fileMetadata = buildImageAttachment({
+                artifact: {
+                  ...output.artifact,
+                  file_id,
+                  filepath: url,
+                },
+                output,
+                metadata,
+              });
+            }
             if (!streamId && !res.headersSent) {
               return fileMetadata;
             }
@@ -596,6 +713,31 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
       );
     }
 
+    const directImageAttachment = isImageArtifact(output)
+      ? buildImageAttachment({
+          artifact: output.artifact,
+          output,
+          metadata,
+        })
+      : null;
+    if (directImageAttachment) {
+      artifactPromises.push(
+        (async () => {
+          if (res.headersSent && !res.writableEnded) {
+            const responseAttachment = buildResponsesFileAttachment(directImageAttachment, output);
+            if (responseAttachment) {
+              writeResponsesAttachment(res, tracker, responseAttachment, metadata);
+            }
+          }
+          return directImageAttachment;
+        })().catch((error) => {
+          logger.error('Error processing image artifact metadata:', error);
+          return null;
+        }),
+      );
+      return;
+    }
+
     if (output.artifact.content) {
       /** @type {FormattedContent[]} */
       const content = output.artifact.content;
@@ -607,21 +749,37 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
         if (part.type !== 'image_url') {
           continue;
         }
-        const { url } = part.image_url;
+        const url = getStringValue(part.image_url?.url);
+        if (!url) {
+          continue;
+        }
         artifactPromises.push(
           (async () => {
             const filename = `${output.name}_img_${nanoid()}`;
             const file_id = output.artifact.file_ids?.[i];
-            const file = await saveBase64Image(url, {
-              req,
-              file_id,
-              filename,
-              endpoint: metadata.provider,
-              context: FileContext.image_generation,
-            });
-            const fileMetadata = Object.assign(file, {
-              toolCallId: output.tool_call_id,
-            });
+            let fileMetadata;
+            if (isDataImageUrl(url)) {
+              const file = await saveBase64Image(url, {
+                req,
+                file_id,
+                filename,
+                endpoint: metadata.provider,
+                context: FileContext.image_generation,
+              });
+              fileMetadata = Object.assign(file, {
+                toolCallId: output.tool_call_id,
+              });
+            } else {
+              fileMetadata = buildImageAttachment({
+                artifact: {
+                  ...output.artifact,
+                  file_id,
+                  filepath: url,
+                },
+                output,
+                metadata,
+              });
+            }
 
             if (!fileMetadata) {
               return null;
@@ -629,16 +787,10 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
 
             // For Responses API, emit attachment during streaming
             if (res.headersSent && !res.writableEnded) {
-              const attachment = {
-                file_id: fileMetadata.file_id,
-                filename: fileMetadata.filename,
-                type: fileMetadata.type,
-                url: fileMetadata.filepath,
-                width: fileMetadata.width,
-                height: fileMetadata.height,
-                tool_call_id: output.tool_call_id,
-              };
-              writeResponsesAttachment(res, tracker, attachment, metadata);
+              const responseAttachment = buildResponsesFileAttachment(fileMetadata, output);
+              if (responseAttachment) {
+                writeResponsesAttachment(res, tracker, responseAttachment, metadata);
+              }
             }
 
             return fileMetadata;

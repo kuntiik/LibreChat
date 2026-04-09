@@ -7,6 +7,7 @@ jest.mock('nanoid', () => ({
 
 jest.mock('@librechat/api', () => ({
   sendEvent: jest.fn(),
+  writeAttachmentEvent: jest.fn(),
 }));
 
 jest.mock('@librechat/data-schemas', () => ({
@@ -41,12 +42,14 @@ jest.mock('~/server/services/Files/process', () => ({
 describe('createToolEndCallback', () => {
   let req, res, artifactPromises, createToolEndCallback;
   let logger;
+  let saveBase64Image;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Get the mocked logger
     logger = require('@librechat/data-schemas').logger;
+    saveBase64Image = require('~/server/services/Files/process').saveBase64Image;
 
     // Now require the module after all mocks are set up
     const callbacks = require('../callbacks');
@@ -229,6 +232,80 @@ describe('createToolEndCallback', () => {
     });
   });
 
+  describe('image artifact handling', () => {
+    it('should process direct image metadata artifacts without base64 conversion', async () => {
+      const toolEndCallback = createToolEndCallback({ req, res, artifactPromises });
+
+      const output = {
+        name: 'flux',
+        tool_call_id: 'tool123',
+        artifact: {
+          file_id: 'file123',
+          filename: 'flux-image.png',
+          filepath: '/images/flux-image.png',
+          type: 'image/png',
+          width: 1024,
+          height: 1024,
+        },
+      };
+
+      const metadata = {
+        run_id: 'run456',
+        thread_id: 'thread789',
+      };
+
+      await toolEndCallback({ output }, metadata);
+      const results = await Promise.all(artifactPromises);
+
+      expect(saveBase64Image).not.toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        file_id: 'file123',
+        filename: 'flux-image.png',
+        filepath: '/images/flux-image.png',
+        messageId: 'run456',
+        toolCallId: 'tool123',
+        conversationId: 'thread789',
+      });
+    });
+
+    it('should keep non-base64 image_url content as direct image attachment', async () => {
+      const toolEndCallback = createToolEndCallback({ req, res, artifactPromises });
+
+      const output = {
+        name: 'flux',
+        tool_call_id: 'tool123',
+        artifact: {
+          file_ids: ['file456'],
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: '/images/from-content.png' },
+            },
+          ],
+        },
+      };
+
+      const metadata = {
+        run_id: 'run456',
+        thread_id: 'thread789',
+      };
+
+      await toolEndCallback({ output }, metadata);
+      const results = await Promise.all(artifactPromises);
+
+      expect(saveBase64Image).not.toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        file_id: 'file456',
+        filepath: '/images/from-content.png',
+        messageId: 'run456',
+        toolCallId: 'tool123',
+        conversationId: 'thread789',
+      });
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle empty ui_resources data object', async () => {
       const toolEndCallback = createToolEndCallback({ req, res, artifactPromises });
@@ -325,5 +402,83 @@ describe('createToolEndCallback', () => {
       expect(artifactPromises).toHaveLength(0);
       expect(res.write).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('createResponsesToolEndCallback', () => {
+  let req, res, tracker, artifactPromises, createResponsesToolEndCallback;
+  let writeAttachmentEvent;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    const callbacks = require('../callbacks');
+    createResponsesToolEndCallback = callbacks.createResponsesToolEndCallback;
+    writeAttachmentEvent = require('@librechat/api').writeAttachmentEvent;
+
+    req = {
+      user: { id: 'user123' },
+    };
+    res = {
+      headersSent: true,
+      writableEnded: false,
+      write: jest.fn(),
+    };
+    tracker = {
+      nextSequence: jest.fn(() => 7),
+    };
+    artifactPromises = [];
+  });
+
+  it('should emit response attachment for direct image metadata artifacts', async () => {
+    const toolEndCallback = createResponsesToolEndCallback({
+      req,
+      res,
+      tracker,
+      artifactPromises,
+    });
+
+    const output = {
+      name: 'flux',
+      tool_call_id: 'tool123',
+      artifact: {
+        file_id: 'file123',
+        filename: 'flux-image.png',
+        filepath: '/images/flux-image.png',
+        type: 'image/png',
+        width: 1024,
+        height: 1024,
+      },
+    };
+
+    const metadata = {
+      run_id: 'run456',
+      thread_id: 'thread789',
+    };
+
+    await toolEndCallback({ output }, metadata);
+    const results = await Promise.all(artifactPromises);
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      file_id: 'file123',
+      filepath: '/images/flux-image.png',
+      messageId: 'run456',
+      toolCallId: 'tool123',
+      conversationId: 'thread789',
+    });
+    expect(writeAttachmentEvent).toHaveBeenCalledWith(
+      res,
+      7,
+      expect.objectContaining({
+        file_id: 'file123',
+        url: '/images/flux-image.png',
+        tool_call_id: 'tool123',
+      }),
+      {
+        messageId: 'run456',
+        conversationId: 'thread789',
+      },
+    );
   });
 });
