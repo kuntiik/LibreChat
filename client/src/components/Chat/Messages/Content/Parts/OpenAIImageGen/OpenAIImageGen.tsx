@@ -247,10 +247,6 @@ export default function OpenAIImageGen({
   const resolvedFilename = filename || outputImageMetadata?.filename || '';
   const hasResolvedFilepath =
     typeof resolvedFilepath === 'string' && resolvedFilepath.trim().length > 0;
-  const isFluxTool = toolName === 'flux';
-  const fluxDebugMessage = isFluxTool
-    ? `flux debug | resolved=${resolvedFilepath ?? '(none)'} | attachment=${attachmentFilepath ?? '(none)'} | outputFile=${outputFilepath ?? '(none)'} | markdown=${outputImagePath ?? '(none)'}`
-    : null;
   if (origWidth == null && outputImageMetadata?.width != null) {
     origWidth = outputImageMetadata.width;
   }
@@ -401,9 +397,6 @@ export default function OpenAIImageGen({
                 height={Number(dimensions.height?.split('px')[0])}
                 args={parsedArgs}
               />
-            )}
-            {isFluxTool && fluxDebugMessage && (
-              <div className="mt-1 break-all text-xs text-text-secondary">{fluxDebugMessage}</div>
             )}
           </div>
         </div>
