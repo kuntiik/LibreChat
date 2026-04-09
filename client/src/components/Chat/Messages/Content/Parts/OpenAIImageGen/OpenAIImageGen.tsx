@@ -194,6 +194,8 @@ export default function OpenAIImageGen({
 
   const resolvedFilepath = filepath ?? outputImageMetadata?.filepath ?? outputImagePath ?? null;
   const resolvedFilename = filename || outputImageMetadata?.filename || '';
+  const hasResolvedFilepath =
+    typeof resolvedFilepath === 'string' && resolvedFilepath.trim().length > 0;
   if (origWidth == null && outputImageMetadata?.width != null) {
     origWidth = outputImageMetadata.width;
   }
@@ -336,13 +338,15 @@ export default function OpenAIImageGen({
                 height={dimensions.height}
               />
             )}
-            <Image
-              altText={resolvedFilename}
-              imagePath={resolvedFilepath ?? ''}
-              width={Number(dimensions.width?.split('px')[0])}
-              height={Number(dimensions.height?.split('px')[0])}
-              args={parsedArgs}
-            />
+            {hasResolvedFilepath && (
+              <Image
+                altText={resolvedFilename}
+                imagePath={resolvedFilepath}
+                width={Number(dimensions.width?.split('px')[0])}
+                height={Number(dimensions.height?.split('px')[0])}
+                args={parsedArgs}
+              />
+            )}
           </div>
         </div>
       )}

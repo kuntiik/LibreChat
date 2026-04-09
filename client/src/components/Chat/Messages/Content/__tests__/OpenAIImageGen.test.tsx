@@ -64,7 +64,19 @@ describe('OpenAIImageGen', () => {
 
   describe('image preloading', () => {
     it('keeps Image mounted during generation (progress < 1)', () => {
-      render(<OpenAIImageGen {...defaultProps} initialProgress={0.5} />);
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={0.5}
+          attachments={[
+            {
+              filename: 'cat.png',
+              filepath: '/images/cat.png',
+              conversationId: 'conv1',
+            } as never,
+          ]}
+        />,
+      );
       expect(screen.getByTestId('image-component')).toBeInTheDocument();
     });
 
@@ -84,6 +96,19 @@ describe('OpenAIImageGen', () => {
         />,
       );
       expect(screen.getByTestId('image-component')).toBeInTheDocument();
+    });
+
+    it('does not render Image when filepath is missing (prevents empty src)', () => {
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={0.5}
+          toolName="flux"
+          output="flux displayed an image."
+          attachments={undefined}
+        />,
+      );
+      expect(screen.queryByTestId('image-component')).not.toBeInTheDocument();
     });
 
     it('falls back to markdown image path for flux when metadata is missing', () => {
