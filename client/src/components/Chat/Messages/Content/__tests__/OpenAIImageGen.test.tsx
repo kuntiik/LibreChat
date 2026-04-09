@@ -149,6 +149,31 @@ describe('OpenAIImageGen', () => {
       );
       expect(screen.getByTestId('image-component')).toHaveAttribute('data-src', '/images/flux.png');
     });
+
+    it('extracts image path from object output artifact content', () => {
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={1}
+          isSubmitting={false}
+          toolName="flux"
+          output={{
+            artifact: {
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: '/images/from-object-artifact.png' },
+                },
+              ],
+            },
+          }}
+        />,
+      );
+      expect(screen.getByTestId('image-component')).toHaveAttribute(
+        'data-src',
+        '/images/from-object-artifact.png',
+      );
+    });
   });
 
   describe('PixelCard visibility', () => {

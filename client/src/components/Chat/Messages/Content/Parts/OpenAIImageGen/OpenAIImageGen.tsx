@@ -61,6 +61,76 @@ function extractMarkdownImagePath(text: string): string | null {
   return match?.[1] ?? null;
 }
 
+type OutputImageMetadata = {
+  filepath?: string | null;
+  filename?: string;
+  width?: number;
+  height?: number;
+  content?: unknown;
+  artifact?: unknown;
+  url?: string;
+};
+
+function collectOutputMetadata(value: unknown): OutputImageMetadata | null {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length > 1) {
+      return collectOutputMetadata(value[1]);
+    }
+    return null;
+  }
+
+  if (typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as OutputImageMetadata & { output?: unknown };
+
+  const outputNested = collectOutputMetadata(candidate.output);
+  if (outputNested) {
+    return { ...candidate, ...outputNested };
+  }
+
+  return candidate;
+}
+
+function resolveOutputFilepath(metadata: OutputImageMetadata | null): string | null {
+  if (!metadata) {
+    return null;
+  }
+
+  if (typeof metadata.filepath === 'string' && metadata.filepath.length > 0) {
+    return metadata.filepath;
+  }
+  if (typeof metadata.url === 'string' && metadata.url.length > 0) {
+    return metadata.url;
+  }
+
+  const artifact = metadata.artifact as { content?: unknown; filepath?: string; url?: string } | undefined;
+  if (artifact) {
+    if (typeof artifact.filepath === 'string' && artifact.filepath.length > 0) {
+      return artifact.filepath;
+    }
+    if (typeof artifact.url === 'string' && artifact.url.length > 0) {
+      return artifact.url;
+    }
+    const artifactUrl = extractImageUrlFromContent(artifact.content);
+    if (artifactUrl) {
+      return artifactUrl;
+    }
+  }
+
+  const contentUrl = extractImageUrlFromContent(metadata.content);
+  if (contentUrl) {
+    return contentUrl;
+  }
+
+  return null;
+}
+
 export default function OpenAIImageGen({
   initialProgress = 0.1,
   isSubmitting,
@@ -73,7 +143,7 @@ export default function OpenAIImageGen({
   isSubmitting?: boolean;
   toolName?: string;
   args: string | Record<string, unknown>;
-  output?: string | null;
+  output?: unknown;
   attachments?: TAttachment[];
 }) {
   const localize = useLocalize();
@@ -158,55 +228,22 @@ export default function OpenAIImageGen({
   // [instructionText, { filepath, filename, width, height, ... }]
   // Use it as a fallback when attachments aren't present.
   let outputImagePath: string | null = null;
-  let outputImageMetadata:
-    | {
-        filepath?: string | null;
-        filename?: string;
-        width?: number;
-        height?: number;
-        content?: unknown;
-      }
-    | null = null;
-  try {
-    if (typeof output === 'string') {
-      outputImagePath = extractMarkdownImagePath(output);
+  let outputImageMetadata = collectOutputMetadata(output);
+  if (typeof output === 'string') {
+    outputImagePath = extractMarkdownImagePath(output);
+    try {
       const parsedOutput = JSON.parse(output);
-      if (
-        Array.isArray(parsedOutput) &&
-        parsedOutput[1] &&
-        typeof parsedOutput[1] === 'object' &&
-        !Array.isArray(parsedOutput[1])
-      ) {
-        outputImageMetadata = parsedOutput[1] as {
-          filepath?: string | null;
-          filename?: string;
-          width?: number;
-          height?: number;
-        };
-      } else if (parsedOutput && typeof parsedOutput === 'object' && !Array.isArray(parsedOutput)) {
-        outputImageMetadata = parsedOutput as {
-          filepath?: string | null;
-          filename?: string;
-          width?: number;
-          height?: number;
-        };
+      const parsedMetadata = collectOutputMetadata(parsedOutput);
+      if (parsedMetadata) {
+        outputImageMetadata = parsedMetadata;
       }
-
-      if (outputImageMetadata?.filepath == null) {
-        const imageUrl = extractImageUrlFromContent(outputImageMetadata?.content);
-        if (imageUrl) {
-          outputImageMetadata = {
-            ...outputImageMetadata,
-            filepath: imageUrl,
-          };
-        }
-      }
+    } catch {
+      /* noop */
     }
-  } catch {
-    outputImageMetadata = null;
   }
+  const outputFilepath = resolveOutputFilepath(outputImageMetadata);
 
-  const resolvedFilepath = filepath ?? outputImageMetadata?.filepath ?? outputImagePath ?? null;
+  const resolvedFilepath = filepath ?? outputFilepath ?? outputImagePath ?? null;
   const resolvedFilename = filename || outputImageMetadata?.filename || '';
   const hasResolvedFilepath =
     typeof resolvedFilepath === 'string' && resolvedFilepath.trim().length > 0;

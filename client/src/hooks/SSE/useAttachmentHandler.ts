@@ -16,6 +16,8 @@ export default function useAttachmentHandler(queryClient?: QueryClient) {
   return ({ data }: { data: TAttachment; submission: EventSubmission }) => {
     const rawData = data as TAttachment & {
       message_id?: string;
+      run_id?: string;
+      runId?: string;
       tool_call_id?: string;
       url?: string;
       filepath?: string;
@@ -23,7 +25,12 @@ export default function useAttachmentHandler(queryClient?: QueryClient) {
 
     const normalizedData = {
       ...rawData,
-      messageId: rawData.messageId ?? rawData.message_id,
+      messageId:
+        rawData.messageId ??
+        rawData.message_id ??
+        rawData.run_id ??
+        rawData.runId ??
+        submission.initialResponse?.messageId,
       toolCallId: rawData.toolCallId ?? rawData.tool_call_id,
       filepath:
         (typeof rawData.filepath === 'string' && rawData.filepath.length > 0
