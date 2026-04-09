@@ -216,6 +216,7 @@ const Part = memo(function Part({
           isSubmitting={isSubmitting}
           toolName={toolCall.function.name}
           output={toolCall.function.output ?? ''}
+          attachments={attachments}
         />
       );
     } else if (toolCall.type === ToolCallTypes.FUNCTION && ToolCallTypes.FUNCTION in toolCall) {
