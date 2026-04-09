@@ -472,9 +472,31 @@ describe('ToolService - Action Capability Gating', () => {
       expect(text).toMatch(/displayed an image/);
     });
 
+    it('does not include markdown when filepath is an inline data URL', () => {
+      const text = buildImageAssistantMessage('flux', {
+        filepath: 'data:image/png;base64,Zm9v',
+      });
+      expect(text).not.toContain('![generated image](');
+    });
+
     it('extracts metadata from tuple output', () => {
       const metadata = normalizeImageOutput(['Your image is ready.', { filepath: '/images/foo.png' }]);
       expect(metadata).toEqual({ filepath: '/images/foo.png' });
+    });
+
+    it('extracts filepath from artifact content image_url blocks', () => {
+      const metadata = normalizeImageOutput([
+        'Your image is ready.',
+        {
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: '/images/from-artifact.png' },
+            },
+          ],
+        },
+      ]);
+      expect(metadata).toEqual({ filepath: '/images/from-artifact.png' });
     });
   });
 

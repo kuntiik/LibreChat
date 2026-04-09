@@ -85,6 +85,19 @@ describe('OpenAIImageGen', () => {
       );
       expect(screen.getByTestId('image-component')).toBeInTheDocument();
     });
+
+    it('falls back to markdown image path for flux when metadata is missing', () => {
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={1}
+          isSubmitting={false}
+          toolName="flux"
+          output="flux displayed an image.\n\n![generated image](/images/flux.png)\n\nDone."
+        />,
+      );
+      expect(screen.getByTestId('image-component')).toHaveAttribute('data-src', '/images/flux.png');
+    });
   });
 
   describe('PixelCard visibility', () => {

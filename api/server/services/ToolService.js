@@ -140,7 +140,7 @@ function buildImageAssistantMessage(toolName, imageOutput) {
   let baseMessage = `${toolName} displayed an image. All generated images are already plainly visible, so don't repeat the descriptions in detail.`;
 
   const filePath = imageOutput && imageOutput.filepath ? imageOutput.filepath : null;
-  if (filePath) {
+  if (typeof filePath === 'string' && filePath.length > 0 && !filePath.startsWith('data:')) {
     baseMessage += `\n\n![generated image](${filePath})\n\n`;
   }
 
@@ -158,19 +158,51 @@ function buildImageAssistantMessage(toolName, imageOutput) {
  * @returns {Record<string, unknown>}
  */
 function normalizeImageOutput(output) {
+  let metadata = null;
   if (Array.isArray(output)) {
-    const metadata = output[1];
-    if (metadata && typeof metadata === 'object') {
-      return metadata;
+    const tupleMetadata = output[1];
+    if (tupleMetadata && typeof tupleMetadata === 'object' && !Array.isArray(tupleMetadata)) {
+      metadata = tupleMetadata;
     }
+  } else if (output && typeof output === 'object' && !Array.isArray(output)) {
+    metadata = output;
+  }
+
+  if (!metadata) {
     return {};
   }
 
-  if (output && typeof output === 'object') {
-    return output;
+  const normalized = { ...metadata };
+  if (!normalized.filepath) {
+    const content = Array.isArray(normalized.content) ? normalized.content : [];
+    for (const block of content) {
+      if (!block || typeof block !== 'object' || block.type !== ContentTypes.IMAGE_URL) {
+        continue;
+      }
+
+      const imageUrl = block.image_url;
+      if (typeof imageUrl === 'string' && imageUrl.length > 0) {
+        normalized.filepath = imageUrl;
+        break;
+      }
+
+      if (
+        imageUrl &&
+        typeof imageUrl === 'object' &&
+        typeof imageUrl.url === 'string' &&
+        imageUrl.url.length > 0
+      ) {
+        normalized.filepath = imageUrl.url;
+        break;
+      }
+    }
   }
 
-  return {};
+  if (Array.isArray(normalized.content)) {
+    delete normalized.content;
+  }
+
+  return normalized;
 }
 
 /**

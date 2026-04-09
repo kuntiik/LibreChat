@@ -24,6 +24,43 @@ function computeCancelled(
   return hasError;
 }
 
+function extractImageUrlFromContent(content: unknown): string | null {
+  if (!Array.isArray(content)) {
+    return null;
+  }
+
+  for (const block of content) {
+    if (!block || typeof block !== 'object') {
+      continue;
+    }
+    const { type, image_url } = block as {
+      type?: string;
+      image_url?: string | { url?: string };
+    };
+    if (type !== 'image_url') {
+      continue;
+    }
+    if (typeof image_url === 'string' && image_url.length > 0) {
+      return image_url;
+    }
+    if (
+      image_url &&
+      typeof image_url === 'object' &&
+      typeof image_url.url === 'string' &&
+      image_url.url.length > 0
+    ) {
+      return image_url.url;
+    }
+  }
+
+  return null;
+}
+
+function extractMarkdownImagePath(text: string): string | null {
+  const match = text.match(/!\[[^\]]*\]\(([^)]+)\)/);
+  return match?.[1] ?? null;
+}
+
 export default function OpenAIImageGen({
   initialProgress = 0.1,
   isSubmitting,
@@ -106,11 +143,19 @@ export default function OpenAIImageGen({
   // Legacy image tool-call output can include metadata in a tuple:
   // [instructionText, { filepath, filename, width, height, ... }]
   // Use it as a fallback when attachments aren't present.
+  let outputImagePath: string | null = null;
   let outputImageMetadata:
-    | { filepath?: string | null; filename?: string; width?: number; height?: number }
+    | {
+        filepath?: string | null;
+        filename?: string;
+        width?: number;
+        height?: number;
+        content?: unknown;
+      }
     | null = null;
   try {
     if (typeof output === 'string') {
+      outputImagePath = extractMarkdownImagePath(output);
       const parsedOutput = JSON.parse(output);
       if (
         Array.isArray(parsedOutput) &&
@@ -132,12 +177,22 @@ export default function OpenAIImageGen({
           height?: number;
         };
       }
+
+      if (outputImageMetadata?.filepath == null) {
+        const imageUrl = extractImageUrlFromContent(outputImageMetadata?.content);
+        if (imageUrl) {
+          outputImageMetadata = {
+            ...outputImageMetadata,
+            filepath: imageUrl,
+          };
+        }
+      }
     }
   } catch {
     outputImageMetadata = null;
   }
 
-  const resolvedFilepath = filepath ?? outputImageMetadata?.filepath ?? null;
+  const resolvedFilepath = filepath ?? outputImageMetadata?.filepath ?? outputImagePath ?? null;
   const resolvedFilename = filename || outputImageMetadata?.filename || '';
   if (origWidth == null && outputImageMetadata?.width != null) {
     origWidth = outputImageMetadata.width;
