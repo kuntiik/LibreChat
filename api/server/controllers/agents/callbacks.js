@@ -307,6 +307,13 @@ function getStringValue(value) {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
+function getImageContentUrl(part) {
+  if (!part || part.type !== 'image_url') {
+    return null;
+  }
+  return getStringValue(part.image_url?.url);
+}
+
 function getArtifactImagePath(artifact) {
   if (!artifact || typeof artifact !== 'object') {
     return null;
@@ -379,6 +386,58 @@ function buildResponsesFileAttachment(fileMetadata, output) {
     tool_call_id: output.tool_call_id,
     toolCallId: output.tool_call_id,
   };
+}
+
+function queueArtifactTask({ artifactPromises, errorLabel, task }) {
+  artifactPromises.push(
+    (async () => {
+      return await task();
+    })().catch((error) => {
+      logger.error(errorLabel, error);
+      return null;
+    }),
+  );
+}
+
+function getDirectImageAttachment({ output, metadata }) {
+  if (!isImageArtifact(output)) {
+    return null;
+  }
+  return buildImageAttachment({
+    artifact: output.artifact,
+    output,
+    metadata,
+  });
+}
+
+async function resolveImageContentFileMetadata({ req, output, metadata, file_id, url }) {
+  const filename = `${output.name}_img_${nanoid()}`;
+  if (isDataImageUrl(url)) {
+    const file = await saveBase64Image(url, {
+      req,
+      file_id,
+      filename,
+      endpoint: metadata.provider,
+      context: FileContext.image_generation,
+    });
+    return Object.assign(file, {
+      messageId: metadata.run_id,
+      message_id: metadata.run_id,
+      toolCallId: output.tool_call_id,
+      tool_call_id: output.tool_call_id,
+      conversationId: metadata.thread_id,
+    });
+  }
+
+  return buildImageAttachment({
+    artifact: {
+      ...output.artifact,
+      file_id,
+      filepath: url,
+    },
+    output,
+    metadata,
+  });
 }
 
 /**
@@ -474,73 +533,43 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
       );
     }
 
-    const directImageAttachment = isImageArtifact(output)
-      ? buildImageAttachment({
-          artifact: output.artifact,
-          output,
-          metadata,
-        })
-      : null;
+    const directImageAttachment = getDirectImageAttachment({ output, metadata });
     if (directImageAttachment) {
-      artifactPromises.push(
-        (async () => {
+      queueArtifactTask({
+        artifactPromises,
+        errorLabel: 'Error processing image artifact metadata:',
+        task: async () => {
           if (!streamId && !res.headersSent) {
             return directImageAttachment;
           }
           writeAttachment(res, streamId, directImageAttachment);
           return directImageAttachment;
-        })().catch((error) => {
-          logger.error('Error processing image artifact metadata:', error);
-          return null;
-        }),
-      );
+        },
+      });
       return;
     }
 
     if (output.artifact.content) {
-      /** @type {FormattedContent[]} */
-      const content = output.artifact.content;
-      for (let i = 0; i < content.length; i++) {
+      const content = Array.isArray(output.artifact.content) ? output.artifact.content : [];
+      const contentLength = content.length;
+      for (let i = 0; i < contentLength; i++) {
         const part = content[i];
-        if (!part) {
-          continue;
-        }
-        if (part.type !== 'image_url') {
-          continue;
-        }
-        const url = getStringValue(part.image_url?.url);
+        const url = getImageContentUrl(part);
         if (!url) {
           continue;
         }
-        artifactPromises.push(
-          (async () => {
-            const filename = `${output.name}_img_${nanoid()}`;
-            const file_id = output.artifact.file_ids?.[i];
-            let fileMetadata;
-            if (isDataImageUrl(url)) {
-              const file = await saveBase64Image(url, {
-                req,
-                file_id,
-                filename,
-                endpoint: metadata.provider,
-                context: FileContext.image_generation,
-              });
-              fileMetadata = Object.assign(file, {
-                messageId: metadata.run_id,
-                toolCallId: output.tool_call_id,
-                conversationId: metadata.thread_id,
-              });
-            } else {
-              fileMetadata = buildImageAttachment({
-                artifact: {
-                  ...output.artifact,
-                  file_id,
-                  filepath: url,
-                },
-                output,
-                metadata,
-              });
-            }
+        const file_id = output.artifact.file_ids?.[i];
+        queueArtifactTask({
+          artifactPromises,
+          errorLabel: 'Error processing artifact content:',
+          task: async () => {
+            const fileMetadata = await resolveImageContentFileMetadata({
+              req,
+              output,
+              metadata,
+              file_id,
+              url,
+            });
             if (!streamId && !res.headersSent) {
               return fileMetadata;
             }
@@ -551,11 +580,8 @@ function createToolEndCallback({ req, res, artifactPromises, streamId = null }) 
 
             writeAttachment(res, streamId, fileMetadata);
             return fileMetadata;
-          })().catch((error) => {
-            logger.error('Error processing artifact content:', error);
-            return null;
-          }),
-        );
+          },
+        });
       }
       return;
     }
@@ -713,16 +739,12 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
       );
     }
 
-    const directImageAttachment = isImageArtifact(output)
-      ? buildImageAttachment({
-          artifact: output.artifact,
-          output,
-          metadata,
-        })
-      : null;
+    const directImageAttachment = getDirectImageAttachment({ output, metadata });
     if (directImageAttachment) {
-      artifactPromises.push(
-        (async () => {
+      queueArtifactTask({
+        artifactPromises,
+        errorLabel: 'Error processing image artifact metadata:',
+        task: async () => {
           if (res.headersSent && !res.writableEnded) {
             const responseAttachment = buildResponsesFileAttachment(directImageAttachment, output);
             if (responseAttachment) {
@@ -730,56 +752,32 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
             }
           }
           return directImageAttachment;
-        })().catch((error) => {
-          logger.error('Error processing image artifact metadata:', error);
-          return null;
-        }),
-      );
+        },
+      });
       return;
     }
 
     if (output.artifact.content) {
-      /** @type {FormattedContent[]} */
-      const content = output.artifact.content;
-      for (let i = 0; i < content.length; i++) {
+      const content = Array.isArray(output.artifact.content) ? output.artifact.content : [];
+      const contentLength = content.length;
+      for (let i = 0; i < contentLength; i++) {
         const part = content[i];
-        if (!part) {
-          continue;
-        }
-        if (part.type !== 'image_url') {
-          continue;
-        }
-        const url = getStringValue(part.image_url?.url);
+        const url = getImageContentUrl(part);
         if (!url) {
           continue;
         }
-        artifactPromises.push(
-          (async () => {
-            const filename = `${output.name}_img_${nanoid()}`;
-            const file_id = output.artifact.file_ids?.[i];
-            let fileMetadata;
-            if (isDataImageUrl(url)) {
-              const file = await saveBase64Image(url, {
-                req,
-                file_id,
-                filename,
-                endpoint: metadata.provider,
-                context: FileContext.image_generation,
-              });
-              fileMetadata = Object.assign(file, {
-                toolCallId: output.tool_call_id,
-              });
-            } else {
-              fileMetadata = buildImageAttachment({
-                artifact: {
-                  ...output.artifact,
-                  file_id,
-                  filepath: url,
-                },
-                output,
-                metadata,
-              });
-            }
+        const file_id = output.artifact.file_ids?.[i];
+        queueArtifactTask({
+          artifactPromises,
+          errorLabel: 'Error processing artifact content:',
+          task: async () => {
+            const fileMetadata = await resolveImageContentFileMetadata({
+              req,
+              output,
+              metadata,
+              file_id,
+              url,
+            });
 
             if (!fileMetadata) {
               return null;
@@ -794,11 +792,8 @@ function createResponsesToolEndCallback({ req, res, tracker, artifactPromises })
             }
 
             return fileMetadata;
-          })().catch((error) => {
-            logger.error('Error processing artifact content:', error);
-            return null;
-          }),
-        );
+          },
+        });
       }
       return;
     }
