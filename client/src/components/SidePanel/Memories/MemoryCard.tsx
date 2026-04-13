@@ -22,16 +22,18 @@ export default function MemoryCard({ memory, hasUpdateAccess }: MemoryCardProps)
   return (
     <div
       className={cn(
-        'rounded-lg px-3 py-2.5',
+        'group/card rounded-lg px-3 py-2.5',
         'border border-border-light bg-transparent',
-        'hover:bg-surface-secondary',
+        'hover:bg-surface-hover',
       )}
     >
       {/* Row 1: Key + Token count + Actions */}
       <div className="flex items-center gap-2">
-        <span className="truncate text-sm font-semibold text-text-primary">{memory.key}</span>
+        <span className="truncate text-sm font-semibold text-text-primary group-hover/card:text-[var(--brand-primary)]">
+          {memory.key}
+        </span>
         {memory.tokenCount !== undefined && (
-          <span className="shrink-0 text-xs text-text-secondary">
+          <span className="shrink-0 text-xs text-text-secondary group-hover/card:text-[var(--brand-primary)]">
             {memory.tokenCount}{' '}
             {localize(memory.tokenCount === 1 ? 'com_ui_token' : 'com_ui_tokens')}
           </span>
@@ -45,10 +47,13 @@ export default function MemoryCard({ memory, hasUpdateAccess }: MemoryCardProps)
 
       {/* Row 2: Value + Date */}
       <div className="mt-1 flex items-baseline gap-2">
-        <p className="min-w-0 flex-1 truncate text-sm text-text-primary" title={memory.value}>
+        <p
+          className="min-w-0 flex-1 truncate text-sm text-text-primary group-hover/card:text-[var(--brand-primary)]"
+          title={memory.value}
+        >
           {memory.value}
         </p>
-        <span className="shrink-0 text-xs text-text-secondary">
+        <span className="shrink-0 text-xs text-text-secondary group-hover/card:text-[var(--brand-primary)]">
           {formatDate(memory.updated_at)}
         </span>
       </div>

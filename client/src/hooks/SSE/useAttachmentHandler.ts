@@ -14,9 +14,37 @@ export default function useAttachmentHandler(queryClient?: QueryClient) {
   const setAttachmentsMap = useSetRecoilState(store.messageAttachmentsMap);
 
   return ({ data }: { data: TAttachment; submission: EventSubmission }) => {
-    const { messageId } = data;
+    const rawData = data as TAttachment & {
+      message_id?: string;
+      run_id?: string;
+      runId?: string;
+      tool_call_id?: string;
+      url?: string;
+      filepath?: string;
+    };
 
-    const fileData = data as TFile;
+    const normalizedData = {
+      ...rawData,
+      messageId:
+        rawData.messageId ??
+        rawData.message_id ??
+        rawData.run_id ??
+        rawData.runId ??
+        submission.initialResponse?.messageId,
+      toolCallId: rawData.toolCallId ?? rawData.tool_call_id,
+      filepath:
+        (typeof rawData.filepath === 'string' && rawData.filepath.length > 0
+          ? rawData.filepath
+          : undefined) ??
+        (typeof rawData.url === 'string' && rawData.url.length > 0 ? rawData.url : undefined),
+    } as TAttachment;
+
+    const { messageId } = normalizedData;
+    if (!messageId) {
+      return;
+    }
+
+    const fileData = normalizedData as TFile;
     if (
       queryClient &&
       fileData?.file_id &&
@@ -37,8 +65,8 @@ export default function useAttachmentHandler(queryClient?: QueryClient) {
       });
     }
 
-    if (queryClient && data.type === Tools.memory && data[Tools.memory]) {
-      const memoryArtifact = data[Tools.memory];
+    if (queryClient && normalizedData.type === Tools.memory && normalizedData[Tools.memory]) {
+      const memoryArtifact = normalizedData[Tools.memory];
 
       queryClient.setQueryData([QueryKeys.memories], (oldData: MemoriesResponse | undefined) => {
         if (!oldData) {
@@ -54,7 +82,7 @@ export default function useAttachmentHandler(queryClient?: QueryClient) {
         (prevMap as Record<string, TAttachment[] | undefined>)[messageId] || [];
       return {
         ...prevMap,
-        [messageId]: [...messageAttachments, data],
+        [messageId]: [...messageAttachments, normalizedData],
       };
     });
   };

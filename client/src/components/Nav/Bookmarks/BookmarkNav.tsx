@@ -107,18 +107,17 @@ const BookmarkNav: FC<BookmarkNavProps> = ({ tags, setTags }: BookmarkNavProps) 
               aria-label={buttonAriaLabel}
               aria-pressed={tags.length > 0}
               className={cn(
-                'flex items-center justify-center',
-                'size-10 border-none text-text-primary hover:bg-accent hover:text-accent-foreground',
-                'rounded-full border-none p-2 hover:bg-surface-active-alt md:rounded-xl',
-                'outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white',
-                isMenuOpen ? 'bg-surface-hover' : '',
+                'flex size-9 items-center justify-center rounded-lg border-none p-2',
+                'text-text-primary hover:bg-surface-active-alt hover:text-[var(--brand-primary)]',
+                'outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--border-focus)]',
+                isMenuOpen ? 'bg-surface-hover text-[var(--brand-primary)]' : '',
               )}
               data-testid="bookmark-menu"
             >
               {tags.length > 0 ? (
-                <BookmarkFilledIcon aria-hidden="true" className="icon-lg text-text-primary" />
+                <BookmarkFilledIcon aria-hidden="true" className="icon-lg text-current" />
               ) : (
-                <BookmarkIcon aria-hidden="true" className="icon-lg text-text-primary" />
+                <BookmarkIcon aria-hidden="true" className="icon-lg text-current" />
               )}
             </Ariakit.MenuButton>
           }

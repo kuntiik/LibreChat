@@ -7,6 +7,7 @@ import { useChatContext } from '~/Providers';
 import OptionHover from './OptionHover';
 import { ESide } from '~/common';
 import { cn } from '~/utils';
+import { isBrandedParameterInputKey } from './keys';
 
 function DynamicDropdown({
   label = '',
@@ -30,6 +31,7 @@ function DynamicDropdown({
   const localize = useLocalize();
   const { preset } = useChatContext();
   const [inputValue, setInputValue] = useState<string | null>(null);
+  const useBrandedInputColors = isBrandedParameterInputKey(settingKey);
 
   const selectedValue = useMemo(() => {
     if (optionType === OptionTypes.Custom) {
@@ -76,7 +78,7 @@ function DynamicDropdown({
             <div className="flex w-full justify-between">
               <Label
                 htmlFor={`${settingKey}-dynamic-dropdown`}
-                className="text-left text-sm font-medium"
+                className="text-left text-xs font-medium"
               >
                 {labelCode ? (localize(label as TranslationKeys) ?? label) : label || settingKey}
                 {showDefault && (
@@ -95,6 +97,13 @@ function DynamicDropdown({
             setValue={handleChange}
             availableValues={options}
             containerClassName="w-full"
+            className={cn(
+              'unified-sidebar-dropdown py-1.5',
+              useBrandedInputColors && 'unified-sidebar-special-input',
+            )}
+            currentValueClass={cn(
+              useBrandedInputColors ? '!text-white' : '!text-[var(--brand-primary)]',
+            )}
             id={`${settingKey}-dynamic-dropdown`}
             placeholder={
               placeholderCode

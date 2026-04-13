@@ -25,7 +25,8 @@ export default function Parameters() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [preset, setPreset] = useState<TPreset | null>(null);
 
-  const { data: endpointsConfig = {} } = useGetEndpointsQuery();
+  const { data: endpointsConfigData } = useGetEndpointsQuery();
+  const endpointsConfig = useMemo(() => endpointsConfigData ?? {}, [endpointsConfigData]);
   const provider = conversation?.endpoint ?? '';
   const model = conversation?.model ?? '';
 
@@ -100,6 +101,10 @@ export default function Parameters() {
 
       logger.log('parameters', 'parameters effect, updated keys:', updatedKeys);
 
+      if (updatedKeys.length === 0) {
+        return prev;
+      }
+
       return updatedConversation;
     });
   }, [parameters, setConversation]);
@@ -125,6 +130,10 @@ export default function Parameters() {
       });
 
       logger.log('parameters', 'parameters reset, affected keys:', resetKeys);
+      if (resetKeys.length === 0) {
+        return prev;
+      }
+
       return updatedConversation;
     });
   }, [setConversation]);
@@ -142,7 +151,7 @@ export default function Parameters() {
   }
 
   return (
-    <div className="h-auto max-w-full overflow-x-hidden p-3">
+    <div className="h-auto max-w-full px-3 pb-3 pt-2">
       <div className="grid grid-cols-2 gap-4">
         {' '}
         {/* This is the parent element containing all settings */}

@@ -105,10 +105,11 @@ function ControlCombobox({
         id={selectId}
         disabled={disabled}
         className={cn(
+          'control-combobox-trigger',
           'flex items-center justify-center gap-2 rounded-full bg-surface-secondary',
           'text-text-primary hover:bg-surface-tertiary',
           'border border-border-light',
-          isCollapsed ? 'h-10 w-10' : 'h-10 w-full rounded-xl px-3 py-2 text-sm',
+          isCollapsed ? 'h-9 w-9' : 'h-9 w-full rounded-xl px-3 py-2 text-sm',
           className,
         )}
       >
@@ -134,7 +135,7 @@ function ControlCombobox({
         gutter={4}
         portal
         className={cn(
-          'animate-popover z-40 overflow-hidden rounded-xl border border-border-light bg-surface-secondary shadow-lg',
+          'control-combobox-popover animate-popover z-40 overflow-hidden rounded-xl border border-border-light bg-surface-secondary shadow-lg',
         )}
         style={{ width: isCollapsed ? '300px' : (buttonWidth ?? '300px') }}
       >
@@ -145,7 +146,7 @@ function ControlCombobox({
               store={combobox}
               autoSelect
               placeholder={searchPlaceholder}
-              className="w-full rounded-md bg-surface-secondary py-2 pl-9 pr-3 text-sm text-text-primary focus:outline-none"
+              className="control-combobox-search w-full rounded-md bg-surface-secondary py-2 pl-9 pr-3 text-sm text-text-primary focus:outline-none"
             />
           </div>
         </div>
@@ -157,6 +158,7 @@ function ControlCombobox({
                   key={item.id}
                   {...item}
                   className={cn(
+                    'control-combobox-option',
                     'flex w-full cursor-pointer items-center px-3 text-sm',
                     'text-text-primary hover:bg-surface-tertiary',
                     'data-[active-item]:bg-surface-tertiary',

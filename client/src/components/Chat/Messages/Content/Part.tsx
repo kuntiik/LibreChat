@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   Tools,
   Constants,
@@ -6,9 +7,8 @@ import {
   imageGenTools,
   isImageVisionTool,
 } from 'librechat-data-provider';
-import { memo } from 'react';
 import type { TMessageContentParts, TAttachment } from 'librechat-data-provider';
-import { OpenAIImageGen, EmptyText, Reasoning, ExecuteCode, AgentUpdate, Text } from './Parts';
+import { ImageGen, ExecuteCode, AgentUpdate, EmptyText, Reasoning, Summary, Text } from './Parts';
 import { ErrorMessage } from './MessageContent';
 import RetrievalCall from './RetrievalCall';
 import { getCachedPreview } from '~/utils';
@@ -17,7 +17,6 @@ import CodeAnalyze from './CodeAnalyze';
 import Container from './Container';
 import WebSearch from './WebSearch';
 import ToolCall from './ToolCall';
-import ImageGen from './ImageGen';
 import Image from './Image';
 
 type PartProps = {
@@ -100,6 +99,16 @@ const Part = memo(function Part({
       return null;
     }
     return <Reasoning reasoning={reasoning} isLast={isLast ?? false} />;
+  } else if (part.type === ContentTypes.SUMMARY) {
+    return (
+      <Summary
+        content={part.content}
+        model={part.model}
+        provider={part.provider}
+        tokenCount={part.tokenCount}
+        summarizing={part.summarizing}
+      />
+    );
   } else if (part.type === ContentTypes.TOOL_CALL) {
     const toolCall = part[ContentTypes.TOOL_CALL];
 
@@ -107,30 +116,31 @@ const Part = memo(function Part({
       return null;
     }
 
-    const isToolCall =
-      'args' in toolCall && (!toolCall.type || toolCall.type === ToolCallTypes.TOOL_CALL);
-    if (
-      isToolCall &&
-      (toolCall.name === Tools.execute_code ||
-        toolCall.name === Constants.PROGRAMMATIC_TOOL_CALLING)
-    ) {
+      const isToolCall =
+        'args' in toolCall && (!toolCall.type || toolCall.type === ToolCallTypes.TOOL_CALL);
+      if (
+        isToolCall &&
+        (toolCall.name === Tools.execute_code ||
+          toolCall.name === Constants.PROGRAMMATIC_TOOL_CALLING)
+      ) {
+        return (
+          <ExecuteCode
+            attachments={attachments}
+            isSubmitting={isSubmitting}
+            output={toolCall.output ?? ''}
+            initialProgress={toolCall.progress ?? 0.1}
+            args={typeof toolCall.args === 'string' ? toolCall.args : ''}
+          />
+        );
+      } else if (
+        isToolCall &&
+        (toolCall.name === 'image_gen_oai' ||
+          toolCall.name === 'image_edit_oai' ||
+          toolCall.name === 'gemini_image_gen'||
+          imageGenTools.has(toolCall.name))
+      ) {
       return (
-        <ExecuteCode
-          attachments={attachments}
-          isSubmitting={isSubmitting}
-          output={toolCall.output ?? ''}
-          initialProgress={toolCall.progress ?? 0.1}
-          args={typeof toolCall.args === 'string' ? toolCall.args : ''}
-        />
-      );
-    } else if (
-      isToolCall &&
-      (toolCall.name === 'image_gen_oai' ||
-        toolCall.name === 'image_edit_oai' ||
-        toolCall.name === 'gemini_image_gen')
-    ) {
-      return (
-        <OpenAIImageGen
+        <ImageGen
           initialProgress={toolCall.progress ?? 0.1}
           isSubmitting={isSubmitting}
           toolName={toolCall.name}
@@ -149,14 +159,17 @@ const Part = memo(function Part({
           isLast={isLast}
         />
       );
-    } else if (isToolCall && toolCall.name?.startsWith(Constants.LC_TRANSFER_TO_)) {
+    } else if (isToolCall && (toolCall.name === 'file_search' || toolCall.name === 'retrieval')) {
       return (
-        <AgentHandoff
-          args={toolCall.args ?? ''}
-          name={toolCall.name || ''}
-          output={toolCall.output ?? ''}
+        <RetrievalCall
+          initialProgress={toolCall.progress ?? 0.1}
+          isSubmitting={isSubmitting}
+          output={toolCall.output ?? undefined}
+          attachments={attachments}
         />
       );
+    } else if (isToolCall && toolCall.name?.startsWith(Constants.LC_TRANSFER_TO_)) {
+      return <AgentHandoff args={toolCall.args ?? ''} name={toolCall.name || ''} />;
     } else if (isToolCall) {
       return (
         <ToolCall
@@ -167,7 +180,6 @@ const Part = memo(function Part({
           isSubmitting={isSubmitting}
           attachments={attachments}
           auth={toolCall.auth}
-          expires_at={toolCall.expires_at}
           isLast={isLast}
         />
       );
@@ -185,7 +197,12 @@ const Part = memo(function Part({
       toolCall.type === ToolCallTypes.FILE_SEARCH
     ) {
       return (
-        <RetrievalCall initialProgress={toolCall.progress ?? 0.1} isSubmitting={isSubmitting} />
+        <RetrievalCall
+          initialProgress={toolCall.progress ?? 0.1}
+          isSubmitting={isSubmitting}
+          output={(toolCall as { output?: string }).output}
+          attachments={attachments}
+        />
       );
     } else if (
       toolCall.type === ToolCallTypes.FUNCTION &&
@@ -196,6 +213,10 @@ const Part = memo(function Part({
         <ImageGen
           initialProgress={toolCall.progress ?? 0.1}
           args={toolCall.function.arguments as string}
+          isSubmitting={isSubmitting}
+          toolName={toolCall.function.name}
+          output={toolCall.function.output ?? ''}
+          attachments={attachments}
         />
       );
     } else if (toolCall.type === ToolCallTypes.FUNCTION && ToolCallTypes.FUNCTION in toolCall) {
@@ -224,9 +245,16 @@ const Part = memo(function Part({
   } else if (part.type === ContentTypes.IMAGE_FILE) {
     const imageFile = part[ContentTypes.IMAGE_FILE];
     const cached = imageFile.file_id ? getCachedPreview(imageFile.file_id) : undefined;
+    const imagePath =
+      cached ??
+      imageFile.filepath ??
+      ((imageFile as { url?: string }).url != null ? (imageFile as { url?: string }).url : null);
+    if (!imagePath || imagePath.trim().length === 0) {
+      return null;
+    }
     return (
       <Image
-        imagePath={cached ?? imageFile.filepath}
+        imagePath={imagePath}
         altText={imageFile.filename ?? 'Uploaded Image'}
         width={imageFile.width}
         height={imageFile.height}

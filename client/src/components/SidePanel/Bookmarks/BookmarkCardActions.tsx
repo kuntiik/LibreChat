@@ -65,7 +65,7 @@ export default function BookmarkCardActions({ bookmark }: BookmarkCardActionsPro
                 ref={editTriggerRef}
                 variant="ghost"
                 size="icon"
-                className="size-7"
+                className="size-7 group-hover/card:text-[var(--brand-primary)]"
                 aria-label={localize('com_ui_bookmarks_edit')}
                 onClick={() => setEditOpen(true)}
               >
@@ -87,7 +87,7 @@ export default function BookmarkCardActions({ bookmark }: BookmarkCardActionsPro
                 ref={deleteTriggerRef}
                 variant="ghost"
                 size="icon"
-                className="size-7"
+                className="size-7 group-hover/card:text-[var(--brand-primary)]"
                 aria-label={localize('com_ui_bookmarks_delete')}
                 onClick={() => setDeleteOpen(true)}
               >

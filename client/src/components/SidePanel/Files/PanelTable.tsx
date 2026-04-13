@@ -205,17 +205,23 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
   const filenameFilter = table.getColumn('filename')?.getFilterValue() as string;
 
   return (
-    <div role="region" aria-label={localize('com_files_table')} className="mt-2 space-y-2">
+    <div
+      role="region"
+      aria-label={localize('com_files_table')}
+      className="space-y-2 text-[var(--brand-primary)]"
+    >
       <FilterInput
         inputId="filename-filter"
         label={localize('com_files_filter')}
         value={filenameFilter ?? ''}
         onChange={(event) => table.getColumn('filename')?.setFilterValue(event.target.value)}
+        className="bg-surface-hover text-[var(--brand-primary)] placeholder-[rgba(0,37,84,0.72)]"
+        containerClassName="[&_label]:text-[var(--brand-primary)]"
       />
 
-      <div className="rounded-lg border border-border-light bg-transparent shadow-sm transition-colors">
-        <div className="overflow-x-auto">
-          <Table>
+      <div className="rounded-lg border border-border-light bg-surface-hover shadow-sm transition-colors">
+        <div className="overflow-hidden">
+          <Table className="table-fixed">
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="border-b border-border-light">
@@ -223,9 +229,9 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
                     <TableHead
                       key={header.id}
                       style={{ width: index === 0 ? '75%' : '25%' }}
-                      className="bg-surface-secondary py-3 text-left text-sm font-medium text-text-secondary"
+                      className="bg-[#c7ccd3] py-2 text-sm font-medium text-[var(--brand-primary)]"
                     >
-                      <div className="px-4">
+                      <div className={index === 0 ? 'px-2' : 'flex justify-end px-1'}>
                         {header.isPlaceholder
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext())}
@@ -241,7 +247,7 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && 'selected'}
-                    className="border-b border-border-light transition-colors hover:bg-surface-secondary [&:last-child]:border-0"
+                    className="border-b border-border-light text-[var(--brand-primary)] transition-colors hover:bg-[#c7ccd3] [&:last-child]:border-0"
                   >
                     {row.getVisibleCells().map((cell) => {
                       const isFilenameCell = cell.column.id === 'filename';
@@ -249,8 +255,8 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
                       return (
                         <TableCell
                           style={{
-                            width: '150px',
-                            maxWidth: '150px',
+                            width: isFilenameCell ? '75%' : '25%',
+                            maxWidth: 0,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
@@ -302,7 +308,7 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
                 <TableRow>
                   <TableCell
                     colSpan={columns.length}
-                    className="h-24 text-center text-sm text-text-secondary"
+                    className="h-24 text-center text-sm text-[var(--brand-primary)]"
                   >
                     {localize('com_files_no_results')}
                   </TableCell>
@@ -313,11 +319,12 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="space-y-2">
         <Button
           ref={manageFilesRef}
           variant="outline"
           size="sm"
+          className="w-full bg-surface-hover text-[var(--brand-primary)] hover:bg-[#c7ccd3]"
           onClick={() => setShowFilesModal(true)}
           aria-label={localize('com_sidepanel_manage_files')}
         >
@@ -325,7 +332,11 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
           <span className="ml-2">{localize('com_sidepanel_manage_files')}</span>
         </Button>
 
-        <div className="flex items-center gap-2" role="navigation" aria-label="Pagination">
+        <div
+          className="flex items-center justify-between"
+          role="navigation"
+          aria-label="Pagination"
+        >
           <Button
             variant="outline"
             size="sm"
@@ -335,7 +346,7 @@ export default function DataTable<TData, TValue>({ columns, data }: DataTablePro
           >
             {localize('com_ui_prev')}
           </Button>
-          <div aria-live="polite" className="text-sm">
+          <div aria-live="polite" className="text-sm text-[var(--brand-primary)]">
             {`${pageIndex + 1} / ${table.getPageCount()}`}
           </div>
           <Button

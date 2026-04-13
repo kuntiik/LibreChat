@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
-import { Button, Spinner, FilterInput, OGDialogTrigger, TooltipAnchor } from '@librechat/client';
+import { Button, Spinner, Input, OGDialogTrigger, TooltipAnchor } from '@librechat/client';
 import { useLocalize, useMCPServerManager, useHasAccess } from '~/hooks';
 import MCPConfigDialog from '~/components/MCP/MCPConfigDialog';
 import MCPAdminSettings from './MCPAdminSettings';
@@ -19,8 +19,10 @@ export default function MCPBuilderPanel() {
   });
   const [showDialog, setShowDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const addButtonRef = useRef<HTMLButtonElement | null>(null);
   const configDialogProps = getConfigDialogProps();
+  const searchLabel = localize('com_ui_filter_mcp_servers');
 
   const filteredServers = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -36,16 +38,19 @@ export default function MCPBuilderPanel() {
   }, [availableMCPServers, searchQuery]);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-visible">
-      <div role="region" aria-label={localize('com_ui_mcp_servers')} className="mt-2 space-y-2">
+    <div className="flex h-auto w-full flex-col px-3 pb-3">
+      <div role="region" aria-label={localize('com_ui_mcp_servers')} className="space-y-2">
         {/* Toolbar: Search + Add Button */}
         <div className="flex items-center gap-2">
-          <FilterInput
-            inputId="mcp-filter"
-            label={localize('com_ui_filter_mcp_servers')}
+          <Input
+            id="mcp-filter"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            containerClassName="flex-1"
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+            placeholder={isSearchFocused || searchQuery.length > 0 ? '' : searchLabel}
+            aria-label={searchLabel}
+            className="h-9 flex-1 bg-surface-hover text-[var(--brand-primary)] placeholder-[rgba(0,37,84,0.72)]"
           />
           {hasCreateAccess && (
             <MCPServerDialog
@@ -62,7 +67,7 @@ export default function MCPBuilderPanel() {
                       ref={addButtonRef}
                       variant="outline"
                       size="icon"
-                      className="shrink-0 bg-transparent"
+                      className="size-9 shrink-0 bg-transparent"
                       onClick={() => setShowDialog(true)}
                       aria-label={localize('com_ui_add_mcp')}
                     >
