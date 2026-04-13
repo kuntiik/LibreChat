@@ -114,7 +114,7 @@ const ConversationsSection = memo(() => {
             <BookmarkNav tags={tags} setTags={setTags} />
           </Suspense>
         )}
-        {search.enabled && <SearchBar isSmallScreen={isSmallScreen} />}
+        <SearchBar isSmallScreen={isSmallScreen} />
       </div>
       <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
         <Conversations

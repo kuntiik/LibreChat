@@ -24,6 +24,113 @@ function computeCancelled(
   return hasError;
 }
 
+function extractImageUrlFromContent(content: unknown): string | null {
+  if (!Array.isArray(content)) {
+    return null;
+  }
+
+  for (const block of content) {
+    if (!block || typeof block !== 'object') {
+      continue;
+    }
+    const { type, image_url } = block as {
+      type?: string;
+      image_url?: string | { url?: string };
+    };
+    if (type !== 'image_url') {
+      continue;
+    }
+    if (typeof image_url === 'string' && image_url.length > 0) {
+      return image_url;
+    }
+    if (
+      image_url &&
+      typeof image_url === 'object' &&
+      typeof image_url.url === 'string' &&
+      image_url.url.length > 0
+    ) {
+      return image_url.url;
+    }
+  }
+
+  return null;
+}
+
+function extractMarkdownImagePath(text: string): string | null {
+  const match = text.match(/!\[[^\]]*\]\(([^)]+)\)/);
+  return match?.[1] ?? null;
+}
+
+type OutputImageMetadata = {
+  filepath?: string | null;
+  filename?: string;
+  width?: number;
+  height?: number;
+  content?: unknown;
+  artifact?: unknown;
+  url?: string;
+};
+
+function collectOutputMetadata(value: unknown): OutputImageMetadata | null {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length > 1) {
+      return collectOutputMetadata(value[1]);
+    }
+    return null;
+  }
+
+  if (typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as OutputImageMetadata & { output?: unknown };
+
+  const outputNested = collectOutputMetadata(candidate.output);
+  if (outputNested) {
+    return { ...candidate, ...outputNested };
+  }
+
+  return candidate;
+}
+
+function resolveOutputFilepath(metadata: OutputImageMetadata | null): string | null {
+  if (!metadata) {
+    return null;
+  }
+
+  if (typeof metadata.filepath === 'string' && metadata.filepath.length > 0) {
+    return metadata.filepath;
+  }
+  if (typeof metadata.url === 'string' && metadata.url.length > 0) {
+    return metadata.url;
+  }
+
+  const artifact = metadata.artifact as { content?: unknown; filepath?: string; url?: string } | undefined;
+  if (artifact) {
+    if (typeof artifact.filepath === 'string' && artifact.filepath.length > 0) {
+      return artifact.filepath;
+    }
+    if (typeof artifact.url === 'string' && artifact.url.length > 0) {
+      return artifact.url;
+    }
+    const artifactUrl = extractImageUrlFromContent(artifact.content);
+    if (artifactUrl) {
+      return artifactUrl;
+    }
+  }
+
+  const contentUrl = extractImageUrlFromContent(metadata.content);
+  if (contentUrl) {
+    return contentUrl;
+  }
+
+  return null;
+}
+
 export default function OpenAIImageGen({
   initialProgress = 0.1,
   isSubmitting,
@@ -36,7 +143,7 @@ export default function OpenAIImageGen({
   isSubmitting?: boolean;
   toolName?: string;
   args: string | Record<string, unknown>;
-  output?: string | null;
+  output?: unknown;
   attachments?: TAttachment[];
 }) {
   const localize = useLocalize();
@@ -92,16 +199,60 @@ export default function OpenAIImageGen({
     height = undefined;
   }
 
-  const attachment = attachments?.[0];
+  const attachment = attachments?.find((item) => {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+    const candidate = item as TFile & { url?: string };
+    if (typeof candidate.filepath === 'string' && candidate.filepath.length > 0) {
+      return true;
+    }
+    return typeof candidate.url === 'string' && candidate.url.length > 0;
+  });
+
+  const attachmentFilepath =
+    (attachment as (TFile & { url?: string }) | undefined)?.filepath ??
+    (attachment as (TFile & { url?: string }) | undefined)?.url ??
+    null;
   const {
     width: imageWidth,
     height: imageHeight,
-    filepath = null,
+    filepath = attachmentFilepath,
     filename = '',
   } = (attachment as TFile & TAttachmentMetadata) || {};
 
   let origWidth = width ?? imageWidth;
   let origHeight = height ?? imageHeight;
+
+  // Legacy image tool-call output can include metadata in a tuple:
+  // [instructionText, { filepath, filename, width, height, ... }]
+  // Use it as a fallback when attachments aren't present.
+  let outputImagePath: string | null = null;
+  let outputImageMetadata = collectOutputMetadata(output);
+  if (typeof output === 'string') {
+    outputImagePath = extractMarkdownImagePath(output);
+    try {
+      const parsedOutput = JSON.parse(output);
+      const parsedMetadata = collectOutputMetadata(parsedOutput);
+      if (parsedMetadata) {
+        outputImageMetadata = parsedMetadata;
+      }
+    } catch {
+      /* noop */
+    }
+  }
+  const outputFilepath = resolveOutputFilepath(outputImageMetadata);
+
+  const resolvedFilepath = filepath ?? outputFilepath ?? outputImagePath ?? null;
+  const resolvedFilename = filename || outputImageMetadata?.filename || '';
+  const hasResolvedFilepath =
+    typeof resolvedFilepath === 'string' && resolvedFilepath.trim().length > 0;
+  if (origWidth == null && outputImageMetadata?.width != null) {
+    origWidth = outputImageMetadata.width;
+  }
+  if (origHeight == null && outputImageMetadata?.height != null) {
+    origHeight = outputImageMetadata.height;
+  }
 
   if (origWidth === undefined || origHeight === undefined) {
     origWidth = 1024;
@@ -238,13 +389,15 @@ export default function OpenAIImageGen({
                 height={dimensions.height}
               />
             )}
-            <Image
-              altText={filename}
-              imagePath={filepath ?? ''}
-              width={Number(dimensions.width?.split('px')[0])}
-              height={Number(dimensions.height?.split('px')[0])}
-              args={parsedArgs}
-            />
+            {hasResolvedFilepath && (
+              <Image
+                altText={resolvedFilename}
+                imagePath={resolvedFilepath}
+                width={Number(dimensions.width?.split('px')[0])}
+                height={Number(dimensions.height?.split('px')[0])}
+                args={parsedArgs}
+              />
+            )}
           </div>
         </div>
       )}

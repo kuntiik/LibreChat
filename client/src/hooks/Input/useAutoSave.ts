@@ -73,7 +73,11 @@ export const useAutoSave = ({
 
   const restoreText = useCallback(
     (id: string) => {
-      setValue('text', getDraft(id) ?? '');
+      const savedDraft = getDraft(id);
+      if (!savedDraft) {
+        return;
+      }
+      setValue('text', savedDraft);
     },
     [setValue],
   );

@@ -105,8 +105,8 @@ export default function MCPServerCard({
               aria-hidden="true"
             />
           ) : (
-            <div className="flex size-8 items-center justify-center rounded-lg bg-surface-tertiary">
-              <MCPIcon className="size-5 text-text-secondary" aria-hidden="true" />
+            <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--brand-primary)]">
+              <MCPIcon className="size-5 text-white" aria-hidden="true" />
             </div>
           )}
           {/* Status dot - color indicates connection state */}

@@ -116,28 +116,29 @@ const Part = memo(function Part({
       return null;
     }
 
-    const isToolCall =
-      'args' in toolCall && (!toolCall.type || toolCall.type === ToolCallTypes.TOOL_CALL);
-    if (
-      isToolCall &&
-      (toolCall.name === Tools.execute_code ||
-        toolCall.name === Constants.PROGRAMMATIC_TOOL_CALLING)
-    ) {
-      return (
-        <ExecuteCode
-          attachments={attachments}
-          isSubmitting={isSubmitting}
-          output={toolCall.output ?? ''}
-          initialProgress={toolCall.progress ?? 0.1}
-          args={toolCall.args}
-        />
-      );
-    } else if (
-      isToolCall &&
-      (toolCall.name === 'image_gen_oai' ||
-        toolCall.name === 'image_edit_oai' ||
-        toolCall.name === 'gemini_image_gen')
-    ) {
+      const isToolCall =
+        'args' in toolCall && (!toolCall.type || toolCall.type === ToolCallTypes.TOOL_CALL);
+      if (
+        isToolCall &&
+        (toolCall.name === Tools.execute_code ||
+          toolCall.name === Constants.PROGRAMMATIC_TOOL_CALLING)
+      ) {
+        return (
+          <ExecuteCode
+            attachments={attachments}
+            isSubmitting={isSubmitting}
+            output={toolCall.output ?? ''}
+            initialProgress={toolCall.progress ?? 0.1}
+            args={typeof toolCall.args === 'string' ? toolCall.args : ''}
+          />
+        );
+      } else if (
+        isToolCall &&
+        (toolCall.name === 'image_gen_oai' ||
+          toolCall.name === 'image_edit_oai' ||
+          toolCall.name === 'gemini_image_gen'||
+          imageGenTools.has(toolCall.name))
+      ) {
       return (
         <ImageGen
           initialProgress={toolCall.progress ?? 0.1}
@@ -215,6 +216,7 @@ const Part = memo(function Part({
           isSubmitting={isSubmitting}
           toolName={toolCall.function.name}
           output={toolCall.function.output ?? ''}
+          attachments={attachments}
         />
       );
     } else if (toolCall.type === ToolCallTypes.FUNCTION && ToolCallTypes.FUNCTION in toolCall) {
@@ -243,9 +245,16 @@ const Part = memo(function Part({
   } else if (part.type === ContentTypes.IMAGE_FILE) {
     const imageFile = part[ContentTypes.IMAGE_FILE];
     const cached = imageFile.file_id ? getCachedPreview(imageFile.file_id) : undefined;
+    const imagePath =
+      cached ??
+      imageFile.filepath ??
+      ((imageFile as { url?: string }).url != null ? (imageFile as { url?: string }).url : null);
+    if (!imagePath || imagePath.trim().length === 0) {
+      return null;
+    }
     return (
       <Image
-        imagePath={cached ?? imageFile.filepath}
+        imagePath={imagePath}
         altText={imageFile.filename ?? 'Uploaded Image'}
         width={imageFile.width}
         height={imageFile.height}

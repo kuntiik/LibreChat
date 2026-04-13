@@ -168,7 +168,7 @@ const AgentHandoffs: React.FC<AgentHandoffsProps> = ({ field, currentAgentId }) 
                         agent={targetAgentId && agentsMap ? agentsMap[targetAgentId] : undefined}
                       />
                     }
-                    className="flex-1 border-border-heavy"
+                    className="flex-1 border-border-heavy text-[var(--brand-primary)] hover:text-[var(--brand-primary)]"
                     containerClassName="px-0"
                   />
                   <button
@@ -178,7 +178,7 @@ const AgentHandoffs: React.FC<AgentHandoffsProps> = ({ field, currentAgentId }) 
                   >
                     <ChevronDown
                       size={16}
-                      className={`text-text-secondary transition-transform ${
+                      className={`text-[var(--brand-primary)] transition-transform ${
                         isExpanded ? 'rotate-180' : ''
                       }`}
                     />
@@ -188,7 +188,7 @@ const AgentHandoffs: React.FC<AgentHandoffsProps> = ({ field, currentAgentId }) 
                     className="rounded-xl p-1 transition hover:bg-surface-hover"
                     onClick={() => removeHandoffAt(idx)}
                   >
-                    <X size={18} className="text-text-secondary" />
+                    <X size={18} className="text-[var(--brand-primary)]" />
                   </button>
                 </div>
 
@@ -251,7 +251,7 @@ const AgentHandoffs: React.FC<AgentHandoffsProps> = ({ field, currentAgentId }) 
                 )}
               </div>
               {idx < edges.length - 1 && (
-                <Waypoints className="mx-auto text-text-secondary" size={14} />
+                <Waypoints className="mx-auto text-[var(--brand-primary)]" size={14} />
               )}
             </React.Fragment>
           );
@@ -259,7 +259,9 @@ const AgentHandoffs: React.FC<AgentHandoffsProps> = ({ field, currentAgentId }) 
 
         {edges.length < MAX_HANDOFFS && (
           <>
-            {edges.length > 0 && <Waypoints className="mx-auto text-text-secondary" size={14} />}
+            {edges.length > 0 && (
+              <Waypoints className="mx-auto text-[var(--brand-primary)]" size={14} />
+            )}
             <ControlCombobox
               isCollapsed={false}
               ariaLabel={localize('com_ui_agent_var', { 0: localize('com_ui_add') })}
@@ -268,9 +270,9 @@ const AgentHandoffs: React.FC<AgentHandoffsProps> = ({ field, currentAgentId }) 
               selectPlaceholder={localize('com_ui_agent_handoff_add')}
               searchPlaceholder={localize('com_ui_agent_var', { 0: localize('com_ui_search') })}
               items={selectableAgents}
-              className="h-9 w-full border-dashed border-border-heavy text-center text-text-secondary hover:text-text-primary"
+              className="h-9 w-full border-dashed border-border-heavy text-center text-[var(--brand-primary)] hover:text-[var(--brand-primary)]"
               containerClassName="px-0"
-              SelectIcon={<PlusCircle size={16} className="text-text-secondary" />}
+              SelectIcon={<PlusCircle size={16} className="text-[var(--brand-primary)]" />}
             />
           </>
         )}

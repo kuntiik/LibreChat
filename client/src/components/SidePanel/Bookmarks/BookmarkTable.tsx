@@ -63,7 +63,8 @@ const BookmarkTable = () => {
             label={localize('com_ui_bookmarks_filter')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            containerClassName="flex-1"
+            className="bg-surface-hover text-[var(--brand-primary)] placeholder-[rgba(0,37,84,0.72)]"
+            containerClassName="flex-1 [&_label]:text-[var(--brand-primary)]"
           />
           <BookmarkEditDialog context="BookmarkTable" open={createOpen} setOpen={setCreateOpen}>
             <OGDialogTrigger asChild>

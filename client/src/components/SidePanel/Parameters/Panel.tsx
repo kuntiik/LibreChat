@@ -25,7 +25,8 @@ export default function Parameters() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [preset, setPreset] = useState<TPreset | null>(null);
 
-  const { data: endpointsConfig = {} } = useGetEndpointsQuery();
+  const { data: endpointsConfigData } = useGetEndpointsQuery();
+  const endpointsConfig = useMemo(() => endpointsConfigData ?? {}, [endpointsConfigData]);
   const provider = conversation?.endpoint ?? '';
   const model = conversation?.model ?? '';
 
@@ -100,6 +101,10 @@ export default function Parameters() {
 
       logger.log('parameters', 'parameters effect, updated keys:', updatedKeys);
 
+      if (updatedKeys.length === 0) {
+        return prev;
+      }
+
       return updatedConversation;
     });
   }, [parameters, setConversation]);
@@ -125,6 +130,10 @@ export default function Parameters() {
       });
 
       logger.log('parameters', 'parameters reset, affected keys:', resetKeys);
+      if (resetKeys.length === 0) {
+        return prev;
+      }
+
       return updatedConversation;
     });
   }, [setConversation]);

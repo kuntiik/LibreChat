@@ -1,7 +1,10 @@
-import type { TUserFavorite } from 'librechat-data-provider';
 import { createTabIsolatedAtom } from './jotai-utils';
 
-export type Favorite = TUserFavorite;
+export type Favorite = {
+  agentId?: string;
+  model?: string;
+  endpoint?: string;
+};
 
 export type FavoriteModel = {
   model: string;

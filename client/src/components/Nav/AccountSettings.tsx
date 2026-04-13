@@ -1,7 +1,7 @@
 import { useState, memo, useRef } from 'react';
 import * as Menu from '@ariakit/react/menu';
 import { FileText, LogOut } from 'lucide-react';
-import { LinkIcon, GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
+import { LinkIcon, GearIcon, Avatar } from '@librechat/client';
 import { MyFilesModal } from '~/components/Chat/Input/Files/MyFilesModal';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -27,8 +27,8 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
         data-testid="nav-user"
         className={
           collapsed
-            ? 'flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-surface-active-alt aria-[expanded=true]:bg-surface-active-alt'
-            : 'mt-text-sm flex h-auto w-full items-center gap-2 rounded-xl p-2 text-sm transition-all duration-200 ease-in-out hover:bg-surface-active-alt aria-[expanded=true]:bg-surface-active-alt'
+            ? 'group flex h-9 w-9 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-surface-active-alt hover:text-[var(--brand-primary)] aria-[expanded=true]:bg-surface-active-alt aria-[expanded=true]:text-[var(--brand-primary)]'
+            : 'group mt-text-sm flex h-auto w-full items-center gap-2 rounded-xl p-2 text-sm text-text-primary transition-all duration-200 ease-in-out hover:bg-surface-active-alt hover:text-[var(--brand-primary)] aria-[expanded=true]:bg-surface-active-alt aria-[expanded=true]:text-[var(--brand-primary)]'
         }
       >
         <div
@@ -40,7 +40,7 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
         </div>
         {!collapsed && (
           <div
-            className="mt-2 grow overflow-hidden text-ellipsis whitespace-nowrap text-left text-text-primary"
+            className="mt-2 grow overflow-hidden text-ellipsis whitespace-nowrap text-left text-current"
             style={{ marginTop: '0', marginLeft: '0' }}
           >
             {user?.name ?? user?.username ?? localize('com_nav_user')}
@@ -59,14 +59,14 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
         <div className="text-token-text-secondary ml-3 mr-2 py-2 text-sm" role="note">
           {user?.email ?? localize('com_nav_user')}
         </div>
-        <DropdownMenuSeparator />
+        <div role="separator" className="-mx-1 my-1 h-px bg-surface-hover" />
         {startupConfig?.balance?.enabled === true && balanceQuery.data != null && (
           <>
             <div className="text-token-text-secondary ml-3 mr-2 py-2 text-sm" role="note">
               {localize('com_nav_balance')}:{' '}
               {new Intl.NumberFormat().format(Math.round(balanceQuery.data.tokenCredits))}
             </div>
-            <DropdownMenuSeparator />
+            <div role="separator" className="-mx-1 my-1 h-px bg-surface-hover" />
           </>
         )}
         <Menu.MenuItem onClick={() => setShowFiles(true)} className="select-item text-sm">
@@ -86,7 +86,7 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
           <GearIcon className="icon-md" aria-hidden="true" />
           {localize('com_nav_settings')}
         </Menu.MenuItem>
-        <DropdownMenuSeparator />
+        <div role="separator" className="-mx-1 my-1 h-px bg-surface-hover" />
         <Menu.MenuItem onClick={() => logout()} className="select-item text-sm">
           <LogOut className="icon-md" aria-hidden="true" />
           {localize('com_nav_log_out')}

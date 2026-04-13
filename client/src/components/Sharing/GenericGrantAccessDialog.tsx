@@ -401,7 +401,6 @@ export default function GenericGrantAccessDialog({
                 </Button>
               </OGDialogClose>
               <Button
-                variant="submit"
                 onClick={handleSave}
                 disabled={
                   updatePermissionsMutation.isLoading ||

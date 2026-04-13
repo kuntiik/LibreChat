@@ -11,39 +11,33 @@ import { logger } from '~/utils';
 const MAX_FAVORITES = 50;
 
 /**
- * Hook for managing user favorites (pinned agents, models, and model specs).
+ * Hook for managing user favorites (pinned agents and models).
  *
  * Favorites are synchronized with the server via `/api/user/settings/favorites`.
  * Each favorite is either:
  * - An agent: `{ agentId: string }`
  * - A model: `{ model: string, endpoint: string }`
- * - A model spec: `{ spec: string }`
  *
  * @returns Object containing favorites state and helper methods for
  * adding, removing, toggling, reordering, and checking favorites.
  */
 
 /**
- * Cleans favorites array to only include canonical shapes (agentId, model+endpoint, or spec).
+ * Cleans favorites array to only include canonical shapes (agentId or model+endpoint).
  */
 const cleanFavorites = (favorites: Favorite[]): Favorite[] => {
   if (!Array.isArray(favorites)) {
     return [];
   }
-  return favorites
-    .map((f) => {
-      if (f.agentId) {
-        return { agentId: f.agentId };
-      }
-      if (f.model && f.endpoint) {
-        return { model: f.model, endpoint: f.endpoint };
-      }
-      if (f.spec) {
-        return { spec: f.spec };
-      }
-      return null;
-    })
-    .filter((f): f is NonNullable<typeof f> => f !== null);
+  return favorites.map((f) => {
+    if (f.agentId) {
+      return { agentId: f.agentId };
+    }
+    if (f.model && f.endpoint) {
+      return { model: f.model, endpoint: f.endpoint };
+    }
+    return f;
+  });
 };
 
 export default function useFavorites() {
@@ -143,34 +137,6 @@ export default function useFavorites() {
     return favorites.some((f) => f.model === model && f.endpoint === endpoint);
   };
 
-  const addFavoriteSpec = (spec: string) => {
-    if (favorites.some((f) => f.spec === spec)) {
-      return;
-    }
-    const newFavorites = [...favorites, { spec }];
-    saveFavorites(newFavorites);
-  };
-
-  const removeFavoriteSpec = (spec: string) => {
-    const newFavorites = favorites.filter((f) => f.spec !== spec);
-    saveFavorites(newFavorites);
-  };
-
-  const isFavoriteSpec = (spec: string | undefined | null) => {
-    if (!spec) {
-      return false;
-    }
-    return favorites.some((f) => f.spec === spec);
-  };
-
-  const toggleFavoriteSpec = (spec: string) => {
-    if (isFavoriteSpec(spec)) {
-      removeFavoriteSpec(spec);
-    } else {
-      addFavoriteSpec(spec);
-    }
-  };
-
   const toggleFavoriteAgent = (agentId: string) => {
     if (isFavoriteAgent(agentId)) {
       removeFavoriteAgent(agentId);
@@ -221,14 +187,10 @@ export default function useFavorites() {
     removeFavoriteAgent,
     addFavoriteModel,
     removeFavoriteModel,
-    addFavoriteSpec,
-    removeFavoriteSpec,
     isFavoriteAgent,
     isFavoriteModel,
-    isFavoriteSpec,
     toggleFavoriteAgent,
     toggleFavoriteModel,
-    toggleFavoriteSpec,
     reorderFavorites,
     /** Whether the favorites query is currently loading */
     isLoading: getFavoritesQuery.isLoading,

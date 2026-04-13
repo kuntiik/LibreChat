@@ -64,7 +64,19 @@ describe('OpenAIImageGen', () => {
 
   describe('image preloading', () => {
     it('keeps Image mounted during generation (progress < 1)', () => {
-      render(<OpenAIImageGen {...defaultProps} initialProgress={0.5} />);
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={0.5}
+          attachments={[
+            {
+              filename: 'cat.png',
+              filepath: '/images/cat.png',
+              conversationId: 'conv1',
+            } as never,
+          ]}
+        />,
+      );
       expect(screen.getByTestId('image-component')).toBeInTheDocument();
     });
 
@@ -84,6 +96,83 @@ describe('OpenAIImageGen', () => {
         />,
       );
       expect(screen.getByTestId('image-component')).toBeInTheDocument();
+    });
+
+    it('does not render Image when filepath is missing (prevents empty src)', () => {
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={0.5}
+          toolName="flux"
+          output="flux displayed an image."
+          attachments={undefined}
+        />,
+      );
+      expect(screen.queryByTestId('image-component')).not.toBeInTheDocument();
+    });
+
+    it('selects the first attachment that has an image path', () => {
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={1}
+          isSubmitting={false}
+          toolName="flux"
+          attachments={[
+            {
+              filename: 'meta.json',
+              conversationId: 'conv1',
+            } as never,
+            {
+              filename: 'cat.png',
+              filepath: '/images/cat-from-second-attachment.png',
+              conversationId: 'conv1',
+            } as never,
+          ]}
+        />,
+      );
+      expect(screen.getByTestId('image-component')).toHaveAttribute(
+        'data-src',
+        '/images/cat-from-second-attachment.png',
+      );
+    });
+
+    it('falls back to markdown image path for flux when metadata is missing', () => {
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={1}
+          isSubmitting={false}
+          toolName="flux"
+          output="flux displayed an image.\n\n![generated image](/images/flux.png)\n\nDone."
+        />,
+      );
+      expect(screen.getByTestId('image-component')).toHaveAttribute('data-src', '/images/flux.png');
+    });
+
+    it('extracts image path from object output artifact content', () => {
+      render(
+        <OpenAIImageGen
+          {...defaultProps}
+          initialProgress={1}
+          isSubmitting={false}
+          toolName="flux"
+          output={{
+            artifact: {
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: '/images/from-object-artifact.png' },
+                },
+              ],
+            },
+          }}
+        />,
+      );
+      expect(screen.getByTestId('image-component')).toHaveAttribute(
+        'data-src',
+        '/images/from-object-artifact.png',
+      );
     });
   });
 

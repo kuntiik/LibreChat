@@ -40,19 +40,14 @@ export const useLoginUserMutation = (
     mutationFn: (payload: t.TLoginUser) => dataService.login(payload),
     ...(options || {}),
     onMutate: (vars) => {
-      setQueriesEnabled(false);
       resetDefaultPreset();
       clearStates();
       queryClient.removeQueries();
       options?.onMutate?.(vars);
     },
-    // Queries re-enabled in setUserContext (AuthContext) after setTokenHeader runs
     onSuccess: (...args) => {
-      options?.onSuccess?.(...args);
-    },
-    onError: (...args) => {
       setQueriesEnabled(true);
-      options?.onError?.(...args);
+      options?.onSuccess?.(...args);
     },
   });
 };

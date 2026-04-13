@@ -1,4 +1,4 @@
-import { Constants, isActionTool } from 'librechat-data-provider';
+import { Constants, actionDelimiter } from 'librechat-data-provider';
 import { Terminal, Globe, ImageIcon, ArrowRightLeft, FileSearch, Zap, Wrench } from 'lucide-react';
 import { cn } from '~/utils';
 
@@ -48,7 +48,7 @@ export function getToolIconType(name: string): ToolIconType {
   if (name.startsWith(Constants.LC_TRANSFER_TO_)) {
     return 'agent_handoff';
   }
-  if (isActionTool(name)) {
+  if (name.includes(actionDelimiter)) {
     return 'action';
   }
   return 'generic';

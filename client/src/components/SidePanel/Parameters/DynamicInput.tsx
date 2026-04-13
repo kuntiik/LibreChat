@@ -6,6 +6,7 @@ import { useChatContext } from '~/Providers';
 import OptionHover from './OptionHover';
 import { ESide } from '~/common';
 import { cn } from '~/utils';
+import { isBrandedParameterInputKey } from './keys';
 
 function DynamicInput({
   label = '',
@@ -25,6 +26,7 @@ function DynamicInput({
 }: DynamicSettingProps) {
   const localize = useLocalize();
   const { preset } = useChatContext();
+  const useBrandedInputColors = isBrandedParameterInputKey(settingKey);
 
   const [setInputValue, inputValue, setLocalValue] = useDebouncedInput<string | number>({
     optionKey: settingKey,
@@ -83,6 +85,7 @@ function DynamicInput({
             placeholder={placeholderText}
             className={cn(
               'flex h-9 max-h-9 w-full resize-none rounded-lg border border-border-light bg-surface-secondary px-3 py-2',
+              useBrandedInputColors && 'unified-sidebar-special-input',
             )}
           />
         </HoverCardTrigger>

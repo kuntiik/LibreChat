@@ -1,6 +1,7 @@
 import { atom } from 'jotai';
 import { NotificationSeverity } from '~/common';
 
+export const langAtom = atom<string>('en');
 export const chatDirectionAtom = atom<string>('ltr');
 export const fontSizeAtom = atom<string>('text-base');
 

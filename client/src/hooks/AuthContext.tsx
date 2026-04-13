@@ -8,13 +8,12 @@ import {
   createContext,
 } from 'react';
 import { debounce } from 'lodash';
-import { useRecoilState, useSetRecoilState } from 'recoil';
+import { useRecoilState } from 'recoil';
 import { useNavigate } from 'react-router-dom';
 import {
   apiBaseUrl,
   SystemRoles,
   setTokenHeader,
-  isSystemRoleName,
   buildLoginRedirectUrl,
 } from 'librechat-data-provider';
 import type * as t from 'librechat-data-provider';
@@ -31,11 +30,7 @@ import { SESSION_KEY, isSafeRedirect, getPostLoginRedirect } from '~/utils';
 import useTimeout from './useTimeout';
 import store from '~/store';
 
-const AuthContext = (import.meta.hot?.data?.__AuthContext ??
-  createContext<TAuthContext | undefined>(undefined)) as React.Context<TAuthContext | undefined>;
-if (import.meta.hot) {
-  import.meta.hot.data.__AuthContext = AuthContext;
-}
+const AuthContext = createContext<TAuthContext | undefined>(undefined);
 
 const AuthContextProvider = ({
   authConfig,
@@ -47,22 +42,16 @@ const AuthContextProvider = ({
   const isExternalRedirectRef = useRef(false);
   const [user, setUser] = useRecoilState(store.user);
   const logoutRedirectRef = useRef<string | undefined>(undefined);
+  const authFlowVersionRef = useRef(0);
   const [token, setToken] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const setQueriesEnabled = useSetRecoilState<boolean>(store.queriesEnabled);
-
-  const userRoleName = user?.role ?? '';
-  const isCustomRole = isAuthenticated && !!user?.role && !isSystemRoleName(user.role);
 
   const { data: userRole = null } = useGetRole(SystemRoles.USER, {
     enabled: !!(isAuthenticated && (user?.role ?? '')),
   });
   const { data: adminRole = null } = useGetRole(SystemRoles.ADMIN, {
     enabled: !!(isAuthenticated && user?.role === SystemRoles.ADMIN),
-  });
-  const { data: customRole = null } = useGetRole(isCustomRole ? userRoleName : '_', {
-    enabled: isCustomRole,
   });
 
   const navigate = useNavigate();
@@ -75,9 +64,6 @@ const AuthContextProvider = ({
         setToken(token);
         setTokenHeader(token);
         setIsAuthenticated(isAuthenticated);
-        if (isAuthenticated) {
-          setQueriesEnabled(true);
-        }
 
         const searchParams = new URLSearchParams(window.location.search);
         const postLoginRedirect = getPostLoginRedirect(searchParams);
@@ -96,7 +82,7 @@ const AuthContextProvider = ({
 
         navigate(finalRedirect, { replace: true });
       }, 50),
-    [navigate, setUser, setQueriesEnabled],
+    [navigate, setUser],
   );
   const doSetError = useTimeout({ callback: (error) => setError(error as string | undefined) });
 
@@ -157,6 +143,7 @@ const AuthContextProvider = ({
 
   const logout = useCallback(
     (redirect?: string) => {
+      authFlowVersionRef.current += 1;
       if (redirect) {
         logoutRedirectRef.current = redirect;
       }
@@ -168,10 +155,12 @@ const AuthContextProvider = ({
   const userQuery = useGetUserQuery({ enabled: !!(token ?? '') });
 
   const login = (data: t.TLoginUser) => {
+    authFlowVersionRef.current += 1;
     loginUser.mutate(data);
   };
 
   const silentRefresh = useCallback(() => {
+    const refreshVersion = authFlowVersionRef.current;
     if (authConfig?.test === true) {
       console.log('Test mode. Skipping silent refresh.');
       return;
@@ -181,6 +170,10 @@ const AuthContextProvider = ({
     }
     refreshToken.mutate(undefined, {
       onSuccess: (data: t.TRefreshTokenResponse | undefined) => {
+        if (refreshVersion !== authFlowVersionRef.current) {
+          console.log('Ignoring stale silent refresh response.');
+          return;
+        }
         if (isExternalRedirectRef.current) {
           return;
         }
@@ -208,6 +201,10 @@ const AuthContextProvider = ({
         navigate(buildLoginRedirectUrl());
       },
       onError: (error) => {
+        if (refreshVersion !== authFlowVersionRef.current) {
+          console.log('Ignoring stale silent refresh error.');
+          return;
+        }
         if (isExternalRedirectRef.current) {
           return;
         }
@@ -278,22 +275,11 @@ const AuthContextProvider = ({
       roles: {
         [SystemRoles.USER]: userRole,
         [SystemRoles.ADMIN]: adminRole,
-        ...(isCustomRole && customRole ? { [userRoleName]: customRole } : {}),
       },
       isAuthenticated,
     }),
 
-    [
-      user,
-      error,
-      isAuthenticated,
-      token,
-      userRole,
-      adminRole,
-      isCustomRole,
-      userRoleName,
-      customRole,
-    ],
+    [user, error, isAuthenticated, token, userRole, adminRole],
   );
 
   return <AuthContext.Provider value={memoedValue}>{children}</AuthContext.Provider>;

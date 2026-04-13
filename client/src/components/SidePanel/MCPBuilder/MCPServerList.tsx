@@ -28,8 +28,8 @@ export default function MCPServerList({
   if (servers.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-border-light bg-transparent p-6 text-center">
-        <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-surface-tertiary">
-          <MCPIcon className="size-5 text-text-secondary" aria-hidden="true" />
+        <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-[var(--brand-primary)]">
+          <MCPIcon className="size-5 text-white" aria-hidden="true" />
         </div>
         {isFiltered ? (
           <p className="text-sm text-text-secondary">{localize('com_ui_no_mcp_servers_match')}</p>

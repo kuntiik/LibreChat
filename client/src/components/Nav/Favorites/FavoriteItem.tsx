@@ -3,9 +3,8 @@ import * as Menu from '@ariakit/react/menu';
 import { Ellipsis, PinOff } from 'lucide-react';
 import { DropdownPopup } from '@librechat/client';
 import { EModelEndpoint } from 'librechat-data-provider';
-import type { Agent, TModelSpec, TEndpointsConfig } from 'librechat-data-provider';
 import type { FavoriteModel } from '~/store/favorites';
-import SpecIcon from '~/components/Chat/Menus/Endpoints/components/SpecIcon';
+import type t from 'librechat-data-provider';
 import MinimalIcon from '~/components/Endpoints/MinimalIcon';
 import { useFavorites, useLocalize } from '~/hooks';
 import { renderAgentAvatar, cn } from '~/utils';
@@ -17,44 +16,30 @@ type Kwargs = {
   spec?: string | null;
 };
 
-type FavoriteItemBaseProps = {
+type FavoriteItemProps = {
+  item: t.Agent | FavoriteModel;
+  type: 'agent' | 'model';
+  onSelectEndpoint?: (endpoint?: EModelEndpoint | string | null, kwargs?: Kwargs) => void;
   onRemoveFocus?: () => void;
 };
 
-type AgentFavoriteProps = FavoriteItemBaseProps & {
-  type: 'agent';
-  item: Agent;
-  onSelectEndpoint?: (endpoint?: EModelEndpoint | string | null, kwargs?: Kwargs) => void;
-};
-
-type ModelFavoriteProps = FavoriteItemBaseProps & {
-  type: 'model';
-  item: FavoriteModel;
-  onSelectEndpoint?: (endpoint?: EModelEndpoint | string | null, kwargs?: Kwargs) => void;
-};
-
-type SpecFavoriteProps = FavoriteItemBaseProps & {
-  type: 'spec';
-  item: TModelSpec;
-  onSelectSpec?: (spec: TModelSpec) => void;
-  endpointsConfig?: TEndpointsConfig;
-};
-
-type FavoriteItemProps = AgentFavoriteProps | ModelFavoriteProps | SpecFavoriteProps;
-
-export default function FavoriteItem(props: FavoriteItemProps) {
-  const { onRemoveFocus } = props;
+export default function FavoriteItem({
+  item,
+  type,
+  onSelectEndpoint,
+  onRemoveFocus,
+}: FavoriteItemProps) {
   const localize = useLocalize();
-  const { removeFavoriteAgent, removeFavoriteModel, removeFavoriteSpec } = useFavorites();
+  const { removeFavoriteAgent, removeFavoriteModel } = useFavorites();
   const [isPopoverActive, setIsPopoverActive] = useState(false);
 
   const handleSelect = () => {
-    if (props.type === 'agent') {
-      props.onSelectEndpoint?.(EModelEndpoint.agents, { agent_id: props.item.id });
-    } else if (props.type === 'spec') {
-      props.onSelectSpec?.(props.item);
+    if (type === 'agent') {
+      const agent = item as t.Agent;
+      onSelectEndpoint?.(EModelEndpoint.agents, { agent_id: agent.id });
     } else {
-      props.onSelectEndpoint?.(props.item.endpoint, { model: props.item.model });
+      const model = item as FavoriteModel;
+      onSelectEndpoint?.(model.endpoint, { model: model.model });
     }
   };
 
@@ -74,12 +59,11 @@ export default function FavoriteItem(props: FavoriteItemProps) {
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (props.type === 'agent') {
-      removeFavoriteAgent(props.item.id);
-    } else if (props.type === 'spec') {
-      removeFavoriteSpec(props.item.name);
+    if (type === 'agent') {
+      removeFavoriteAgent((item as t.Agent).id);
     } else {
-      removeFavoriteModel(props.item.model, props.item.endpoint);
+      const model = item as FavoriteModel;
+      removeFavoriteModel(model.model, model.endpoint);
     }
     setIsPopoverActive(false);
     requestAnimationFrame(() => {
@@ -88,35 +72,26 @@ export default function FavoriteItem(props: FavoriteItemProps) {
   };
 
   const renderIcon = () => {
-    if (props.type === 'agent') {
-      return renderAgentAvatar(props.item, { size: 'icon', className: 'mr-2' });
+    if (type === 'agent') {
+      return renderAgentAvatar(item as t.Agent, { size: 'icon', className: 'mr-2' });
     }
-    if (props.type === 'spec') {
-      return (
-        <div className="mr-2 h-5 w-5">
-          <SpecIcon currentSpec={props.item} endpointsConfig={props.endpointsConfig} />
-        </div>
-      );
-    }
+    const model = item as FavoriteModel;
     return (
       <div className="mr-2 h-5 w-5">
-        <MinimalIcon endpoint={props.item.endpoint} size={20} isCreatedByUser={false} />
+        <MinimalIcon endpoint={model.endpoint} size={20} isCreatedByUser={false} />
       </div>
     );
   };
 
-  let name: string;
-  let typeLabel: string;
-  if (props.type === 'agent') {
-    name = props.item.name ?? '';
-    typeLabel = localize('com_ui_agent');
-  } else if (props.type === 'spec') {
-    name = props.item.label;
-    typeLabel = localize('com_ui_model_spec');
-  } else {
-    name = props.item.model;
-    typeLabel = localize('com_ui_model');
-  }
+  const getName = (): string => {
+    if (type === 'agent') {
+      return (item as t.Agent).name ?? '';
+    }
+    return (item as FavoriteModel).model;
+  };
+
+  const name = getName();
+  const typeLabel = type === 'agent' ? localize('com_ui_agent') : localize('com_ui_model');
   const ariaLabel = `${name} (${typeLabel})`;
 
   const menuId = React.useId();
@@ -135,8 +110,8 @@ export default function FavoriteItem(props: FavoriteItemProps) {
       tabIndex={0}
       aria-label={ariaLabel}
       className={cn(
-        'group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black dark:focus-visible:ring-white',
-        isPopoverActive ? 'bg-surface-active-alt' : '',
+        'group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-text-primary outline-none hover:bg-surface-active-alt hover:text-[var(--brand-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--border-focus)]',
+        isPopoverActive ? 'bg-surface-active-alt text-[var(--brand-primary)]' : '',
       )}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -165,7 +140,8 @@ export default function FavoriteItem(props: FavoriteItemProps) {
           trigger={
             <Menu.MenuButton
               className={cn(
-                'inline-flex h-7 w-7 items-center justify-center rounded-md border-none p-0 text-sm font-medium ring-ring-primary transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+                'inline-flex h-7 w-7 items-center justify-center rounded-md border-none p-0 text-sm font-medium text-text-secondary ring-ring-primary transition-all duration-200 ease-in-out hover:bg-surface-hover hover:text-[var(--brand-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50',
+                isPopoverActive ? 'text-[var(--brand-primary)]' : '',
                 isPopoverActive
                   ? 'opacity-100'
                   : 'opacity-0 focus:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 data-[open]:opacity-100',
@@ -181,7 +157,7 @@ export default function FavoriteItem(props: FavoriteItemProps) {
                 }
               }}
             >
-              <Ellipsis className="icon-md text-text-secondary" aria-hidden={true} />
+              <Ellipsis className="icon-md text-current" aria-hidden={true} />
             </Menu.MenuButton>
           }
           items={dropdownItems}

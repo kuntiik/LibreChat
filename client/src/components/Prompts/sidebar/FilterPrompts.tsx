@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRecoilState } from 'recoil';
 import { ListFilter, User, Share2 } from 'lucide-react';
-import { Dropdown, FilterInput } from '@librechat/client';
+import { Dropdown, Input } from '@librechat/client';
 import { SystemCategories } from 'librechat-data-provider';
 import type { Option } from '~/common';
 import { useLocalize, useCategories, useDebounce } from '~/hooks';
@@ -18,9 +18,10 @@ export default function FilterPrompts({
   dropdownClassName?: string;
 }) {
   const localize = useLocalize();
-  const { name, setName, hasAccess, promptGroups } = usePromptGroupsContext() ?? {};
+  const { name, setName, hasAccess, promptGroups } = usePromptGroupsContext();
   const { categories } = useCategories({ className: 'h-4 w-4', hasAccess });
   const [searchTerm, setSearchTerm] = useState(name || '');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [categoryFilter, setCategory] = useRecoilState(store.promptsCategory);
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const prevNameRef = useRef(name);
@@ -77,15 +78,13 @@ export default function FilterPrompts({
   }, [name]);
 
   useEffect(() => {
-    if (!setName) {
-      return;
-    }
     setName(debouncedSearchTerm);
   }, [debouncedSearchTerm, setName]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   }, []);
+  const searchLabel = localize('com_ui_filter_prompts_name');
 
   const resultCount = promptGroups?.length ?? 0;
   const searchResultsAnnouncement = useMemo(() => {
@@ -112,12 +111,15 @@ export default function FilterPrompts({
         ariaLabel={localize('com_ui_filter_prompts')}
         iconOnly
       />
-      <FilterInput
-        inputId="prompts-filter"
-        label={localize('com_ui_filter_prompts_name')}
+      <Input
+        id="prompts-filter"
         value={searchTerm}
         onChange={handleSearchChange}
-        containerClassName="flex-1"
+        onFocus={() => setIsSearchFocused(true)}
+        onBlur={() => setIsSearchFocused(false)}
+        placeholder={isSearchFocused || searchTerm.length > 0 ? '' : searchLabel}
+        aria-label={searchLabel}
+        className="h-9 flex-1 bg-surface-hover text-[var(--brand-primary)] placeholder-[rgba(0,37,84,0.72)]"
       />
       <CreatePromptButton />
     </div>

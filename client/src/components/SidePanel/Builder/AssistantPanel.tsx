@@ -5,7 +5,7 @@ import { useForm, FormProvider, Controller, useWatch } from 'react-hook-form';
 import {
   Tools,
   Capabilities,
-  isActionTool,
+  actionDelimiter,
   ImageVisionTool,
   defaultAssistantFormValues,
 } from 'librechat-data-provider';
@@ -139,7 +139,7 @@ export default function AssistantPanel({
 
   const onSubmit = (data: AssistantForm) => {
     const tools: Array<FunctionTool | string> = [...functions].map((functionName) => {
-      if (!isActionTool(functionName)) {
+      if (!functionName.includes(actionDelimiter)) {
         return functionName;
       } else {
         const assistant = assistantMap?.[endpoint]?.[assistant_id];

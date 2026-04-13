@@ -1,10 +1,10 @@
 import React from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { VisuallyHidden } from '@ariakit/react';
-import { CheckCircle2, Pin, PinOff } from 'lucide-react';
 import type { TModelSpec } from 'librechat-data-provider';
-import { useFavorites, useLocalize, useIsActiveItem } from '~/hooks';
-import { useModelSelectorContext } from '../ModelSelectorContext';
 import { CustomMenuItem as MenuItem } from '../CustomMenu';
+import { useModelSelectorContext } from '../ModelSelectorContext';
+import { useLocalize } from '~/hooks';
 import SpecIcon from './SpecIcon';
 import { cn } from '~/utils';
 
@@ -16,24 +16,15 @@ interface ModelSpecItemProps {
 export function ModelSpecItem({ spec, isSelected }: ModelSpecItemProps) {
   const localize = useLocalize();
   const { handleSelectSpec, endpointsConfig } = useModelSelectorContext();
-  const { isFavoriteSpec, toggleFavoriteSpec } = useFavorites();
   const { showIconInMenu = true } = spec;
-
-  const { ref: itemRef, isActive } = useIsActiveItem<HTMLDivElement>();
-
-  const isFavorite = isFavoriteSpec(spec.name);
-
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleFavoriteSpec(spec.name);
-  };
-
   return (
     <MenuItem
-      ref={itemRef}
+      key={spec.name}
       onClick={() => handleSelectSpec(spec)}
       aria-selected={isSelected || undefined}
-      className="group flex w-full cursor-pointer items-center justify-between rounded-lg px-2 text-sm"
+      className={cn(
+        'flex w-full cursor-pointer items-center justify-between rounded-lg px-2 text-sm',
+      )}
     >
       <div
         className={cn(
@@ -53,24 +44,6 @@ export function ModelSpecItem({ spec, isSelected }: ModelSpecItemProps) {
           )}
         </div>
       </div>
-      <button
-        type="button"
-        tabIndex={isActive ? 0 : -1}
-        onClick={handleFavoriteClick}
-        aria-label={isFavorite ? localize('com_ui_unpin') : localize('com_ui_pin')}
-        className={cn(
-          'rounded-md p-1 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring-primary',
-          isFavorite
-            ? 'visible'
-            : 'invisible group-focus-within:visible group-hover:visible group-data-[active-item]:visible',
-        )}
-      >
-        {isFavorite ? (
-          <PinOff className="h-4 w-4 text-text-secondary" aria-hidden="true" />
-        ) : (
-          <Pin className="h-4 w-4 text-text-secondary" aria-hidden="true" />
-        )}
-      </button>
       {isSelected && (
         <>
           <CheckCircle2

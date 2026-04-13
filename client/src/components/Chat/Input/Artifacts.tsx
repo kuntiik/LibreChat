@@ -14,8 +14,8 @@ interface ArtifactsToggleState {
 
 function Artifacts() {
   const localize = useLocalize();
-  const context = useBadgeRowContext();
-  const { toggleState, debouncedChange, isPinned } = context?.artifacts ?? {};
+  const { artifacts } = useBadgeRowContext();
+  const { toggleState, debouncedChange, isPinned } = artifacts;
 
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isButtonExpanded, setIsButtonExpanded] = useState(false);
@@ -32,7 +32,6 @@ function Artifacts() {
   const isCustomEnabled = currentState.mode === ArtifactModes.CUSTOM;
 
   const handleToggle = useCallback(() => {
-    if (!debouncedChange) return;
     if (isEnabled) {
       debouncedChange({ value: '' });
       setIsButtonExpanded(false);
@@ -56,7 +55,6 @@ function Artifacts() {
   }, [isPopoverOpen]);
 
   const handleShadcnToggle = useCallback(() => {
-    if (!debouncedChange) return;
     if (isShadcnEnabled) {
       debouncedChange({ value: ArtifactModes.DEFAULT });
     } else {
@@ -65,7 +63,6 @@ function Artifacts() {
   }, [isShadcnEnabled, debouncedChange]);
 
   const handleCustomToggle = useCallback(() => {
-    if (!debouncedChange) return;
     if (isCustomEnabled) {
       debouncedChange({ value: ArtifactModes.DEFAULT });
     } else {

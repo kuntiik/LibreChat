@@ -114,6 +114,13 @@ const DragDropModal = ({ onOptionSelect, setShowModal, files, isVisible }: DragD
         condition: files.every((file) => getFileType(file)?.startsWith('image/')),
       });
     }
+    if (capabilities.contextEnabled) {
+      _options.push({
+        label: localize('com_ui_upload_ocr_text'),
+        value: EToolResources.context,
+        icon: <FileType2Icon className="icon-md" />,
+      });
+    }
     if (capabilities.fileSearchEnabled && fileSearchAllowedByAgent) {
       _options.push({
         label: localize('com_ui_upload_file_search'),
@@ -128,14 +135,6 @@ const DragDropModal = ({ onOptionSelect, setShowModal, files, isVisible }: DragD
         icon: <TerminalSquareIcon className="icon-md" />,
       });
     }
-    if (capabilities.contextEnabled) {
-      _options.push({
-        label: localize('com_ui_upload_ocr_text'),
-        value: EToolResources.context,
-        icon: <FileType2Icon className="icon-md" />,
-      });
-    }
-
     return _options;
   }, [
     files,

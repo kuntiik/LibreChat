@@ -1,13 +1,6 @@
 import { useMemo } from 'react';
-import { MCPIcon, AttachmentIcon, OpenAIMinimalIcon } from '@librechat/client';
-import {
-  Bot,
-  Brain,
-  Bookmark,
-  NotebookPen,
-  ArrowRightToLine,
-  SlidersHorizontal,
-} from 'lucide-react';
+import { Blocks, MCPIcon, AttachmentIcon } from '@librechat/client';
+import { Database, Bookmark, Settings2, ArrowRightToLine, MessageSquareQuote } from 'lucide-react';
 import {
   Permissions,
   EModelEndpoint,
@@ -81,22 +74,6 @@ export default function useSideNavLinks({
 
   const Links = useMemo(() => {
     const links: NavLink[] = [];
-
-    if (
-      endpointsConfig?.[EModelEndpoint.agents] &&
-      hasAccessToAgents &&
-      hasAccessToCreateAgents &&
-      endpointsConfig[EModelEndpoint.agents].disableBuilder !== true
-    ) {
-      links.push({
-        title: 'com_sidepanel_agent_builder',
-        label: '',
-        icon: Bot,
-        id: EModelEndpoint.agents,
-        Component: AgentPanelSwitch,
-      });
-    }
-
     if (
       isAssistantsEndpoint(endpoint) &&
       ((endpoint === EModelEndpoint.assistants &&
@@ -110,9 +87,24 @@ export default function useSideNavLinks({
       links.push({
         title: 'com_sidepanel_assistant_builder',
         label: '',
-        icon: OpenAIMinimalIcon,
+        icon: Blocks,
         id: EModelEndpoint.assistants,
         Component: PanelSwitch,
+      });
+    }
+
+    if (
+      endpointsConfig?.[EModelEndpoint.agents] &&
+      hasAccessToAgents &&
+      hasAccessToCreateAgents &&
+      endpointsConfig[EModelEndpoint.agents].disableBuilder !== true
+    ) {
+      links.push({
+        title: 'com_sidepanel_agent_builder',
+        label: '',
+        icon: Blocks,
+        id: EModelEndpoint.agents,
+        Component: AgentPanelSwitch,
       });
     }
 
@@ -120,7 +112,7 @@ export default function useSideNavLinks({
       links.push({
         title: 'com_ui_prompts',
         label: '',
-        icon: NotebookPen,
+        icon: MessageSquareQuote,
         id: 'prompts',
         Component: PromptsAccordion,
       });
@@ -130,19 +122,24 @@ export default function useSideNavLinks({
       links.push({
         title: 'com_ui_memories',
         label: '',
-        icon: Brain,
+        icon: Database,
         id: 'memories',
         Component: MemoryPanel,
       });
     }
 
-    if (hasAccessToBookmarks) {
+    if (
+      interfaceConfig.parameters === true &&
+      isParamEndpoint(endpoint ?? '', endpointType ?? '') === true &&
+      !isAgentsEndpoint(endpoint) &&
+      keyProvided
+    ) {
       links.push({
-        title: 'com_sidepanel_conversation_tags',
+        title: 'com_sidepanel_parameters',
         label: '',
-        icon: Bookmark,
-        id: 'bookmarks',
-        Component: BookmarkPanel,
+        icon: Settings2,
+        id: 'parameters',
+        Component: Parameters,
       });
     }
 
@@ -154,18 +151,13 @@ export default function useSideNavLinks({
       Component: FilesPanel,
     });
 
-    if (
-      interfaceConfig.parameters === true &&
-      isParamEndpoint(endpoint ?? '', endpointType ?? '') === true &&
-      !isAgentsEndpoint(endpoint) &&
-      keyProvided
-    ) {
+    if (hasAccessToBookmarks) {
       links.push({
-        title: 'com_sidepanel_parameters',
+        title: 'com_sidepanel_conversation_tags',
         label: '',
-        icon: SlidersHorizontal,
-        id: 'parameters',
-        Component: Parameters,
+        icon: Bookmark,
+        id: 'bookmarks',
+        Component: BookmarkPanel,
       });
     }
 

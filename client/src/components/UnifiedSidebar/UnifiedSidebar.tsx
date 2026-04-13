@@ -137,14 +137,14 @@ function UnifiedSidebar() {
       <>
         <div
           className={cn(
-            'fixed left-0 top-0 z-[110] flex h-full bg-surface-primary-alt',
+            'sidebar-theme unified-sidebar-theme fixed left-0 top-0 z-[110] flex h-full bg-surface-primary-alt',
             expanded ? 'translate-x-0' : '-translate-x-full',
           )}
           style={{
             width: 'min(85vw, 380px)',
             transition: `transform ${TRANSITION_MS}ms ${EASING}`,
           }}
-          inert={!expanded ? '' : undefined}
+          {...{ inert: !expanded ? '' : undefined }}
         >
           <SidebarChatProvider>
             <ActivePanelProvider>

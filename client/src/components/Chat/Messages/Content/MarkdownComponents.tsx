@@ -1,14 +1,11 @@
 import React, { memo, useMemo, useRef, useEffect } from 'react';
 import { useRecoilValue } from 'recoil';
-import { useToastContext } from '@librechat/client';
 import { PermissionTypes, Permissions, apiBaseUrl } from 'librechat-data-provider';
 import Mermaid, { MermaidErrorBoundary } from '~/components/Messages/Content/Mermaid';
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
-import { useFileDownload } from '~/data-provider';
 import { useCodeBlockContext } from '~/Providers';
 import { handleDoubleClick } from '~/utils';
-import { useLocalize } from '~/hooks';
 import store from '~/store';
 
 type TCodeProps = {
@@ -95,10 +92,10 @@ type TAnchorProps = {
   children: React.ReactNode;
 };
 
+
+
 export const a: React.ElementType = memo(function MarkdownAnchor({ href, children }: TAnchorProps) {
   const user = useRecoilValue(store.user);
-  const { showToast } = useToastContext();
-  const localize = useLocalize();
 
   const {
     file_id = '',
@@ -117,55 +114,20 @@ export const a: React.ElementType = memo(function MarkdownAnchor({ href, childre
     return { file_id: '', filename: '', filepath: '' };
   }, [user?.id, href]);
 
-  const { refetch: downloadFile } = useFileDownload(user?.id ?? '', file_id);
-  const props: { target?: string; onClick?: React.MouseEventHandler } = { target: '_blank' };
-
-  if (!file_id || !filename) {
-    return (
-      <a href={href} {...props}>
-        {children}
-      </a>
-    );
-  }
-
-  const handleDownload = async (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    try {
-      const stream = await downloadFile();
-      if (stream.data == null || stream.data === '') {
-        console.error('Error downloading file: No data found');
-        showToast({
-          status: 'error',
-          message: localize('com_ui_download_error'),
-        });
-        return;
-      }
-      const link = document.createElement('a');
-      link.href = stream.data;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(stream.data);
-    } catch (error) {
-      console.error('Error downloading file:', error);
+  // compute final link href
+  const computeHref = () => {
+    if (file_id && filename) {
+      const domainServerBaseUrl = `${apiBaseUrl()}/api`;
+      return filepath?.startsWith('files/')
+        ? `${domainServerBaseUrl}/${filepath}`
+        : `${domainServerBaseUrl}/files/${filepath}`;
     }
+    return href;
   };
-
-  props.onClick = handleDownload;
-  props.target = '_blank';
-
-  const domainServerBaseUrl = `${apiBaseUrl()}/api`;
+  const finalHref = computeHref();
 
   return (
-    <a
-      href={
-        filepath?.startsWith('files/')
-          ? `${domainServerBaseUrl}/${filepath}`
-          : `${domainServerBaseUrl}/files/${filepath}`
-      }
-      {...props}
-    >
+    <a href={finalHref} target="_blank" rel="noreferrer">
       {children}
     </a>
   );
@@ -199,19 +161,34 @@ export const img: React.ElementType = memo(function MarkdownImage({
   // Get the base URL from the API endpoints
   const baseURL = apiBaseUrl();
 
-  // If src starts with /images/, prepend the base URL
-  const fixedSrc = useMemo(() => {
+  // Resolve relative image paths against our API base URL.
+  const resolvedSrc = useMemo(() => {
     if (!src) return src;
-
-    // If it's already an absolute URL or doesn't start with /images/, return as is
-    if (src.startsWith('http') || src.startsWith('data:') || !src.startsWith('/images/')) {
-      return src;
-    }
-
-    // Prepend base URL to the image path
-    return `${baseURL}${src}`;
+    if (src.startsWith('data:')) return src;
+    if (src.startsWith('/')) return `${baseURL}${src}`;
+    return src;
   }, [src, baseURL]);
 
-  return <img src={fixedSrc} alt={alt} title={title} className={className} style={style} />;
+  const shouldRenderImage = useMemo(() => {
+    if (!resolvedSrc) return false;
+    if (resolvedSrc.startsWith('data:')) return false;
+    try {
+      const serverOrigin = new URL(baseURL, window.location.origin).origin;
+      const imageUrl = new URL(resolvedSrc, window.location.origin);
+      return imageUrl.origin === serverOrigin && imageUrl.pathname.startsWith('/images/');
+    } catch {
+      return false;
+    }
+  }, [resolvedSrc, baseURL]);
+
+  if (!shouldRenderImage) {
+    return (
+      <a href={resolvedSrc ?? src} target="_blank" rel="noreferrer">
+        {alt || title || src}
+      </a>
+    );
+  }
+
+  return <img src={resolvedSrc} alt={alt} title={title} className={className} style={style} />;
 });
 img.displayName = 'MarkdownImage';

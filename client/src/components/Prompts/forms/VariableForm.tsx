@@ -174,9 +174,10 @@ export default function VariableForm({
                       <InputCombobox
                         options={field.config.options || []}
                         placeholder={field.config.variable}
+                        suppressFocusRing={true}
                         className={cn(
                           defaultTextProps,
-                          'mb-1 rounded px-3 py-2 focus:bg-surface-tertiary',
+                          'mb-1 rounded px-3 py-2 focus:border-[var(--brand-primary)] focus:bg-surface-tertiary focus:ring-[var(--brand-primary)]',
                         )}
                         value={value}
                         onChange={onChange}
@@ -196,7 +197,7 @@ export default function VariableForm({
                         id={`fields.${index}.value`}
                         className={cn(
                           defaultTextProps,
-                          'peer rounded px-3 py-2 focus:bg-surface-tertiary',
+                          'peer rounded px-3 py-2 focus:border-[var(--brand-primary)] focus:bg-surface-tertiary focus:ring-[var(--brand-primary)]',
                         )}
                         placeholder=""
                         maxRows={8}

@@ -1,5 +1,5 @@
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import debounce from 'lodash/debounce';
-import React, { useState, useCallback, useMemo } from 'react';
 import type { SetterOrUpdater } from 'recoil';
 import type { TSetOption } from '~/common';
 import { defaultDebouncedDelay } from '~/common';
@@ -26,14 +26,29 @@ function useDebouncedInput<T = unknown>({
   // (newValue: string) => void,
 ] {
   const [value, setValue] = useState<T>(initialValue);
+  const optionSetter = useMemo(
+    () => (setOption && optionKey ? setOption(optionKey) : setter || (() => {})),
+    [setOption, optionKey, setter],
+  );
+  const optionSetterRef = useRef(optionSetter);
+
+  useEffect(() => {
+    optionSetterRef.current = optionSetter;
+  }, [optionSetter]);
 
   /** A debounced function to call the passed setOption with the optionKey and new value.
    *
   Note: We use useMemo to ensure our debounced function is stable across renders and properly typed. */
   const setDebouncedOption = useMemo(
-    () => debounce(setOption && optionKey ? setOption(optionKey) : setter || (() => {}), delay),
-    [setOption, optionKey, setter, delay],
+    () => debounce((newValue: T) => optionSetterRef.current(newValue), delay),
+    [delay],
   );
+
+  useEffect(() => {
+    return () => {
+      setDebouncedOption.cancel();
+    };
+  }, [setDebouncedOption]);
 
   /** An onChange handler that updates the local state and the debounced option */
   const onChange = useCallback(

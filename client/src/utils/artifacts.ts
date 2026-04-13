@@ -4,7 +4,6 @@ import type {
   SandpackProviderProps,
   SandpackPredefinedTemplate,
 } from '@codesandbox/sandpack-react';
-import type { TStartupConfig } from 'librechat-data-provider';
 
 const artifactFilename = {
   'application/vnd.react': 'App.tsx',
@@ -139,28 +138,9 @@ export function getProps(type: string): Partial<SandpackProviderProps> {
   };
 }
 
-/** Fragment hint lets Sandpack's static-template regex detect `.js` from the URL;
- * without it, the versioned CDN path (`/3.4.17`) has no recognised extension and
- * `injectExternalResources` throws "Unable to determine file type". */
-const TAILWIND_CDN = 'https://cdn.tailwindcss.com/3.4.17#tailwind.js';
-
 export const sharedOptions: SandpackProviderProps['options'] = {
-  externalResources: [TAILWIND_CDN],
+  externalResources: ['https://cdn.tailwindcss.com/3.4.17'],
 };
-
-export function buildSandpackOptions(
-  template: SandpackProviderProps['template'],
-  startupConfig?: TStartupConfig,
-): SandpackProviderProps['options'] {
-  if (!startupConfig) {
-    return sharedOptions;
-  }
-
-  return {
-    ...sharedOptions,
-    bundlerURL: template === 'static' ? startupConfig.staticBundlerURL : startupConfig.bundlerURL,
-  };
-}
 
 export const sharedFiles = {
   '/lib/utils.ts': shadcnComponents.utils,

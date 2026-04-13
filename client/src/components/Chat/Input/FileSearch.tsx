@@ -6,8 +6,8 @@ import { useBadgeRowContext } from '~/Providers';
 
 function FileSearch() {
   const localize = useLocalize();
-  const context = useBadgeRowContext();
-  const { toggleState: fileSearchEnabled, debouncedChange, isPinned } = context?.fileSearch ?? {};
+  const { fileSearch } = useBadgeRowContext();
+  const { toggleState: fileSearchEnabled, debouncedChange, isPinned } = fileSearch;
 
   const canUseFileSearch = useHasAccess({
     permissionType: PermissionTypes.FILE_SEARCH,

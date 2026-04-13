@@ -5,19 +5,9 @@ import CodeApiKeyDialog from '~/components/SidePanel/Agents/Code/ApiKeyDialog';
 import { useBadgeRowContext } from '~/Providers';
 
 function ToolDialogs() {
-  const context = useBadgeRowContext();
-  const { webSearch, codeInterpreter, searchApiKeyForm, codeApiKeyForm } = context ?? {};
-  const { authData: webSearchAuthData } = webSearch ?? {};
-  const { authData: codeAuthData } = codeInterpreter ?? {};
-  const searchAuthTypes = useMemo(
-    () => webSearchAuthData?.authTypes ?? [],
-    [webSearchAuthData?.authTypes],
-  );
-  const codeAuthType = useMemo(() => codeAuthData?.message ?? false, [codeAuthData?.message]);
-
-  if (!searchApiKeyForm || !codeApiKeyForm) {
-    return null;
-  }
+  const { webSearch, codeInterpreter, searchApiKeyForm, codeApiKeyForm } = useBadgeRowContext();
+  const { authData: webSearchAuthData } = webSearch;
+  const { authData: codeAuthData } = codeInterpreter;
 
   const {
     methods: searchMethods,
@@ -38,6 +28,12 @@ function ToolDialogs() {
     badgeTriggerRef: codeBadgeTriggerRef,
     menuTriggerRef: codeMenuTriggerRef,
   } = codeApiKeyForm;
+
+  const searchAuthTypes = useMemo(
+    () => webSearchAuthData?.authTypes ?? [],
+    [webSearchAuthData?.authTypes],
+  );
+  const codeAuthType = useMemo(() => codeAuthData?.message ?? false, [codeAuthData?.message]);
 
   return (
     <>

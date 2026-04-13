@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { useMediaQuery } from '@librechat/client';
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
-import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import type t from 'librechat-data-provider';
 import { useDocumentTitle, useHasAccess, useLocalize, TranslationKeys } from '~/hooks';
 import { useGetEndpointsQuery, useGetAgentCategoriesQuery } from '~/data-provider';
 import MarketplaceAdminSettings from './MarketplaceAdminSettings';
-import OpenSidebar from '~/components/Chat/Menus/OpenSidebar';
 import { SidePanelGroup } from '~/components/SidePanel';
 import CategoryTabs from './CategoryTabs';
 import SearchBar from './SearchBar';
@@ -216,19 +215,14 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
               </div>
             )}
             {/* Sticky wrapper for search bar and categories */}
-            <div className="sticky top-0 z-10 mt-4 bg-presentation pb-4 md:mt-0">
+            <div className="sticky top-0 z-10 bg-presentation pb-4">
               <div className="container mx-auto max-w-4xl px-4">
-                <div className="mx-auto mb-3 flex max-w-2xl items-center justify-between gap-2 md:hidden">
-                  <OpenSidebar />
-                  <MarketplaceAdminSettings compact />
-                </div>
                 {/* Search bar */}
                 <div className="mx-auto flex max-w-2xl gap-2 pb-6">
                   <SearchBar value={searchQuery} onSearch={handleSearch} />
                   {/* TODO: Remove this once we have a better way to handle admin settings */}
-                  <div className="hidden md:block">
-                    <MarketplaceAdminSettings />
-                  </div>
+                  {/* Admin Settings */}
+                  <MarketplaceAdminSettings />
                 </div>
 
                 {/* Category tabs */}

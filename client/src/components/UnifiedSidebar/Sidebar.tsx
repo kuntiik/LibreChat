@@ -21,7 +21,7 @@ function Sidebar({
 }) {
   return (
     <>
-      <div className="flex h-full w-full overflow-hidden">
+      <div className="sidebar-theme unified-sidebar-theme flex h-full w-full overflow-hidden">
         <ExpandedPanel
           links={links}
           expanded={expanded}

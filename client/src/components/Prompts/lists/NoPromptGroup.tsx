@@ -15,7 +15,7 @@ export default function NoPromptGroup() {
           <Button
             className="mt-4"
             onClick={() => {
-              navigate('/prompts');
+              navigate('/d/prompts');
             }}
             aria-label={localize('com_ui_back_to_prompts')}
           >

@@ -48,7 +48,7 @@ function MessagesViewContent({
               width: '100%',
             }}
           >
-            <div className="flex flex-col pb-9 pt-14 dark:bg-transparent">
+            <div className="flex flex-col pb-9 pt-16 dark:bg-transparent">
               {(_messagesTree && _messagesTree.length == 0) || _messagesTree === null ? (
                 <div
                   className={cn(
@@ -62,6 +62,7 @@ function MessagesViewContent({
                 <>
                   <div ref={screenshotTargetRef}>
                     <MultiMessage
+                      key={conversationId}
                       messagesTree={_messagesTree}
                       messageId={conversationId ?? null}
                       setCurrentEditId={setCurrentEditId}

@@ -1,1 +1,1 @@
-export { default as InlinePromptsView } from './InlinePromptsView';
+export { default as PromptsView } from './PromptsView';
