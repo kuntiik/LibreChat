@@ -78,6 +78,13 @@ export interface RegisterCodeExecutionToolsParams {
    * commands. Paired with `RunConfig.toolOutputReferences` in `createRun`.
    */
   enableToolOutputReferences?: boolean;
+  /**
+   * When `true`, also register the `review_slides` fresh-eyes visual-QA
+   * tool. Gated on code execution (the images to review live in the
+   * sandbox), so callers pass the same value as `includeBash`. See
+   * `docs/decisions/QA_FRESH_EYES_REVIEW.md`.
+   */
+  includeReviewSlides?: boolean;
 }
 
 export interface RegisterCodeExecutionToolsResult {
@@ -126,6 +133,47 @@ const CODE_READ_FILE_DEF: LCTool = Object.freeze({
 function buildReadFileDef(includeSkillFileInstructions: boolean): LCTool {
   return includeSkillFileInstructions ? READ_FILE_DEF : CODE_READ_FILE_DEF;
 }
+
+const REVIEW_SLIDES_DESCRIPTION = `Get a FRESH-EYES visual review of rendered slides (or any generated images) from a second reviewer that has NOT seen your code. Use this for QA after rendering a deck to images — you wrote the code, so you'll see what you intended, not what's actually there.
+
+Render the slides to PNG/JPEG in the sandbox first, then call this with their paths and the original brief. The reviewer returns a per-slide list of concrete issues (overlaps, overflow, cut-off text, low contrast, misalignment, leftover placeholders, uneven spacing). Treat every issue as real: fix it, re-render, and review again until a pass comes back clean. Do not declare the deck done before at least one fix-and-review cycle.`;
+
+const REVIEW_SLIDES_PARAMETERS: LCTool['parameters'] = Object.freeze({
+  type: 'object',
+  properties: {
+    image_paths: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Paths to the rendered slide images in the sandbox, in slide order, e.g. ["/mnt/data/slide-01.png", "/mnt/data/slide-02.png"]. PNG/JPEG/GIF/WebP only.',
+    },
+    brief: {
+      type: 'string',
+      description:
+        "The original request / what the deck is meant to achieve, so the reviewer can judge against intent (it can't see the conversation).",
+    },
+    expectations: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Optional. Per-slide note of what each slide should contain, aligned with image_paths order.',
+    },
+  },
+  required: ['image_paths', 'brief'],
+}) as LCTool['parameters'];
+
+/**
+ * Frozen module-level definition for the `review_slides` fresh-eyes
+ * visual-QA tool. Execution is intercepted in `handlers.ts`
+ * (`handleReviewSlidesCall`) — there is no LangChain tool instance — so
+ * registering the definition is all that's needed for the model to see
+ * and call it. See `docs/decisions/QA_FRESH_EYES_REVIEW.md`.
+ */
+const REVIEW_SLIDES_DEF: LCTool = Object.freeze({
+  name: 'review_slides',
+  description: REVIEW_SLIDES_DESCRIPTION,
+  parameters: REVIEW_SLIDES_PARAMETERS,
+}) as LCTool;
 
 function isCodeOnlyReadFileDef(def: LCTool | undefined): boolean {
   return (
@@ -184,12 +232,16 @@ export function registerCodeExecutionTools(
     includeBash,
     includeSkillFileInstructions = true,
     enableToolOutputReferences = false,
+    includeReviewSlides = false,
   } = params;
 
   const readFileDef = buildReadFileDef(includeSkillFileInstructions);
   const candidates: LCTool[] = includeBash
     ? [readFileDef, buildBashToolDef({ enableToolOutputReferences })]
     : [readFileDef];
+  if (includeReviewSlides) {
+    candidates.push(REVIEW_SLIDES_DEF);
+  }
 
   const inputDefinitions = toolDefinitions ?? [];
   let workingDefinitions = inputDefinitions;

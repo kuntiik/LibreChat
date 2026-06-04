@@ -1375,6 +1375,10 @@ async function loadToolsForExecution({
     AgentConstants.BASH_TOOL,
     AgentConstants.SKILL_TOOL,
     AgentConstants.READ_FILE,
+    // Fresh-eyes visual-QA tool; execution intercepted in handlers.ts
+    // (handleReviewSlidesCall), no LangChain instance to load.
+    // See docs/decisions/QA_FRESH_EYES_REVIEW.md.
+    'review_slides',
   ]);
 
   let ptcOrchestratedToolNames = [];

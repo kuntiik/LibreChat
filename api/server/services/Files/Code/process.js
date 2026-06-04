@@ -1042,11 +1042,89 @@ async function readSandboxFile({ file_path, session_id, files, req }) {
   }
 }
 
+/**
+ * Reads a sandbox file as base64 over the codeapi `/exec` transport.
+ *
+ * `readSandboxFile` shells `cat`, which is fine for text but corrupts
+ * binary: the JSON `/exec` response lossily down-converts non-UTF-8
+ * stdout to replacement characters. For images we instead run
+ * `base64 -w0` inside the sandbox so the bytes arrive as ASCII and
+ * survive the JSON round-trip intact. Used by `read_file` to surface a
+ * generated image back to the model as a vision artifact (visual QA of
+ * its own rendered output), mirroring the skill-file image path.
+ *
+ * Operates on the live path in the seeded session, so it works for
+ * files the agent created earlier in the SAME turn (which aren't yet in
+ * `files`/`codeSessionContext`).
+ *
+ * @param {Object} params
+ * @param {string} params.file_path - Absolute path inside the sandbox.
+ * @param {string} [params.session_id] - Sandbox session id from the seeded context.
+ * @param {Array<{id: string, name: string, session_id?: string}>} [params.files] - File refs to mount.
+ * @param {ServerRequest} [params.req] - Current authenticated request, used to mint Code API auth.
+ * @returns {Promise<{base64: string} | null>}
+ */
+async function readSandboxFileBase64({ file_path, session_id, files, req }) {
+  const baseURL = getCodeBaseURL();
+  if (!baseURL) {
+    return null;
+  }
+
+  const safePath = `'${file_path.replace(/'/g, `'\\''`)}'`;
+  /** `base64 -w0` (GNU coreutils, present in the slim Debian sandbox)
+   *  emits a single unwrapped line; whitespace is stripped defensively
+   *  below in case a non-GNU base64 wraps output. */
+  /** @type {Record<string, unknown>} */
+  const postData = { lang: 'bash', code: `base64 -w0 ${safePath}` };
+  if (session_id) {
+    postData.session_id = session_id;
+  }
+  if (files && files.length > 0) {
+    postData.files = files;
+  }
+
+  try {
+    const authHeaders = await getCodeApiAuthHeaders(req);
+    const response = await axios({
+      method: 'post',
+      url: `${baseURL}/exec`,
+      data: postData,
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'LibreChat/1.0',
+        ...authHeaders,
+      },
+      httpAgent: codeServerHttpAgent,
+      httpsAgent: codeServerHttpsAgent,
+      timeout: 15000,
+    });
+    const result = response?.data ?? {};
+    if (result.stderr && (result.stdout == null || result.stdout === '')) {
+      throw new Error(String(result.stderr).trim());
+    }
+    if (result.stdout == null) {
+      return null;
+    }
+    const base64 = String(result.stdout).replace(/\s/g, '');
+    if (!base64) {
+      return null;
+    }
+    return { base64 };
+  } catch (error) {
+    logAxiosError({
+      message: `Error reading sandbox file as base64 "${file_path}"`,
+      error,
+    });
+    throw error;
+  }
+}
+
 module.exports = {
   primeFiles,
   checkIfActive,
   getSessionInfo,
   processCodeOutput,
   readSandboxFile,
+  readSandboxFileBase64,
   runPreviewFinalize,
 };

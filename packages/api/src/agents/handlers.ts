@@ -149,6 +149,36 @@ export interface ToolExecuteOptions {
     files?: Array<{ id: string; name: string; session_id?: string }>;
     req?: ServerRequest;
   }) => Promise<{ content: string } | null>;
+  /**
+   * Sibling of `readSandboxFile` that returns the file as base64 (via
+   * `base64 -w0` over `/exec`), so `read_file` can surface a generated
+   * raster image back to the model as a vision artifact for visual QA
+   * instead of the "cannot be read as text" error. Same session/auth
+   * wiring; returns `null` when codeapi is unavailable.
+   */
+  readSandboxFileBase64?: (params: {
+    file_path: string;
+    session_id?: string;
+    files?: Array<{ id: string; name: string; session_id?: string }>;
+    req?: ServerRequest;
+  }) => Promise<{ base64: string } | null>;
+  /**
+   * Fresh-eyes visual QA: hands rendered slide images + the original
+   * brief to a SECOND model (a different provider than the agent's, by
+   * default) that never saw the generation code, and returns its
+   * per-slide issue list as text. Powers the `review_slides` tool — see
+   * `docs/decisions/QA_FRESH_EYES_REVIEW.md`. Injected host-side
+   * (`reviewImages.js`) because the LLM-client wiring lives in
+   * `api/server`, not this package. Absent ⇒ `review_slides` returns an
+   * instructive error telling the model to fall back to manual
+   * `read_file` inspection.
+   */
+  reviewImages?: (params: {
+    images: Array<{ mime: string; base64: string; path: string }>;
+    brief: string;
+    expectations?: string[];
+    req?: ServerRequest;
+  }) => Promise<string>;
 }
 
 const MAX_READABLE_BYTES = 262_144;
@@ -158,6 +188,18 @@ const MAX_TOOL_ERROR_MESSAGE_CHARS = 12_000;
 const MAX_TOOL_ERROR_STACK_CHARS = 4_000;
 
 const IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
+/**
+ * Name of the fresh-eyes visual-QA tool. A LibreChat-local special tool
+ * (execution intercepted in this file, like `read_file`/`skill`), so the
+ * name is a local constant rather than a `@librechat/agents` `Constants`
+ * member. See `docs/decisions/QA_FRESH_EYES_REVIEW.md`.
+ */
+export const REVIEW_SLIDES_TOOL_NAME = 'review_slides';
+
+/** Hard ceiling on images per `review_slides` call — keeps the reviewer
+ *  request bounded and matches a sane slide-count-per-pass for QA. */
+const MAX_REVIEW_IMAGES = 20;
 
 type ToolInputSchemaKind = {
   object: boolean;
@@ -468,6 +510,147 @@ function lowercaseExtension(filePath: string): string {
 }
 
 /**
+ * Maps a lowercase image extension to a provider-safe content-block mime.
+ * Limited to the four types `IMAGE_MIMES` accepts (the same set the
+ * skill-file image artifact path uses) — other raster extensions
+ * (`.bmp`, `.tiff`, `.heic`, …) stay on the text-error path because
+ * vision providers reject them as `image_url` blocks.
+ */
+function imageMimeForExt(ext: string): string | undefined {
+  switch (ext) {
+    case '.png':
+      return 'image/png';
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.gif':
+      return 'image/gif';
+    case '.webp':
+      return 'image/webp';
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Smallest decoded payload we'll forward as an `image_url`. A file below
+ * this is never a real raster image (an empty/stub/placeholder file, a
+ * truncated upload, etc.); attaching it produces a malformed data URL
+ * that the vision provider rejects with a 400 that aborts the whole
+ * turn. Floor + magic-byte sniff below keep that poison out.
+ */
+const MIN_IMAGE_BYTES = 128;
+
+/**
+ * Confirms the decoded bytes actually start with the magic number for
+ * the claimed mime. The extension (and even codeapi's success) can't be
+ * trusted — a `.jpg` path may hold a stub, HTML error body, or garbage.
+ * Shipping that as `data:image/jpeg;base64,...` makes the provider 400
+ * the request, so validate the header before building the artifact.
+ * Decodes only the first few base64 chars (enough for any signature).
+ */
+function base64HeaderMatchesMime(base64: string, mime: string): boolean {
+  let head: Buffer;
+  try {
+    head = Buffer.from(base64.slice(0, 32), 'base64');
+  } catch {
+    return false;
+  }
+  if (head.length < 4) {
+    return false;
+  }
+  switch (mime) {
+    case 'image/jpeg':
+      return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+    case 'image/png':
+      return head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47;
+    case 'image/gif':
+      return head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46; // "GIF"
+    case 'image/webp':
+      // "RIFF" .... "WEBP"
+      return (
+        head.length >= 12 &&
+        head[0] === 0x52 &&
+        head[1] === 0x49 &&
+        head[2] === 0x46 &&
+        head[3] === 0x46 &&
+        head[8] === 0x57 &&
+        head[9] === 0x45 &&
+        head[10] === 0x42 &&
+        head[11] === 0x50
+      );
+    default:
+      return false;
+  }
+}
+
+/**
+ * Attempts to read a sandbox image back AS AN IMAGE so the model can
+ * visually inspect its own generated output (e.g. QA of rendered slides
+ * the agent just produced). Fetches the bytes as base64 over `/exec`
+ * (`cat` would corrupt binary across the JSON transport) and returns a
+ * `content_and_artifact` result with an `image_url` block — the exact
+ * shape the skill-file image path already uses, so the downstream
+ * consumer treatment is identical.
+ *
+ * Returns `null` on any miss (no base64 callback, codeapi down, empty
+ * read, oversize, transport error) so the caller cleanly falls back to
+ * the instructive text error.
+ */
+async function tryReadSandboxImage(
+  tc: ToolCallRequest,
+  filePath: string,
+  mime: string,
+  options: ToolExecuteOptions,
+  req?: ServerRequest,
+): Promise<ToolExecuteResult | null> {
+  const { readSandboxFileBase64 } = options;
+  if (!readSandboxFileBase64) {
+    return null;
+  }
+  const ctx = tc.codeSessionContext as
+    | { session_id?: string; files?: Array<{ id: string; name: string; session_id?: string }> }
+    | undefined;
+  try {
+    const result = await readSandboxFileBase64({
+      file_path: filePath,
+      session_id: ctx?.session_id,
+      files: ctx?.files,
+      ...(req ? { req } : {}),
+    });
+    if (!result || !result.base64) {
+      return null;
+    }
+    /** base64 inflates ~4/3; guard the DECODED size against the same
+     *  5MB ceiling the skill-file image path enforces. Oversize ⇒ null
+     *  so the model gets the bash-fallback hint instead of a huge blob. */
+    const approxBytes = Math.floor((result.base64.length * 3) / 4);
+    if (approxBytes > MAX_BINARY_BYTES) {
+      return null;
+    }
+    /** Reject too-small / non-image payloads BEFORE building the data
+     *  URL. A stub or truncated upload would otherwise be shipped as a
+     *  bogus `image_url` and 400 the entire turn. Fall back to the text
+     *  error so the model gets an actionable message instead of a crash. */
+    if (approxBytes < MIN_IMAGE_BYTES || !base64HeaderMatchesMime(result.base64, mime)) {
+      return null;
+    }
+    return {
+      toolCallId: tc.id,
+      status: 'success',
+      content: `Image: ${filePath} (~${approxBytes} bytes, ${mime}) — attached below for inspection.`,
+      artifact: {
+        content: [
+          { type: 'image_url', image_url: { url: `data:${mime};base64,${result.base64}` } },
+        ],
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Builds the model-visible error returned when `read_file` is invoked on
  * a binary path. Phrasing is tuned for the LLM: states the fact (file is
  * binary, can't be read as text), points at the correct affordance for
@@ -524,6 +707,22 @@ async function handleSandboxFileFallback(
 ): Promise<ToolExecuteResult> {
   const ext = lowercaseExtension(filePath);
   if (BINARY_EXTENSIONS_NEVER_READABLE.has(ext)) {
+    /**
+     * Raster images get a vision affordance: rather than dead-ending
+     * with "cannot be read as text", fetch the bytes as base64 and
+     * return them as an `image_url` artifact so a vision-capable model
+     * can visually inspect its own generated output (e.g. QA a rendered
+     * slide it just produced). Falls through to the text error on any
+     * miss, and only for the four provider-safe mimes — every other
+     * binary keeps the original behavior.
+     */
+    const imageMime = imageMimeForExt(ext);
+    if (imageMime) {
+      const imageResult = await tryReadSandboxImage(tc, filePath, imageMime, options, req);
+      if (imageResult) {
+        return imageResult;
+      }
+    }
     return {
       toolCallId: tc.id,
       status: 'error',
@@ -1170,6 +1369,156 @@ async function handleSkillToolCall(
   };
 }
 
+interface ReviewSlidesArgs {
+  image_paths?: string[];
+  brief?: string;
+  expectations?: string[];
+}
+
+interface PreparedReviewImage {
+  mime: string;
+  base64: string;
+  path: string;
+}
+
+/**
+ * Executes the `review_slides` fresh-eyes visual-QA tool. Reads each
+ * rendered slide image from the sandbox as base64 (reusing the D1
+ * `readSandboxFileBase64` infra + the same magic-byte/size guards as the
+ * `read_file` image path), then hands the images + the original brief to
+ * a SECOND model via the injected `reviewImages` callback — a reviewer
+ * that never saw the generation code, so its eyes are genuinely fresh.
+ * Returns the reviewer's per-slide issue list as tool text the agent must
+ * then act on. See `docs/decisions/QA_FRESH_EYES_REVIEW.md`.
+ */
+async function handleReviewSlidesCall(
+  tc: ToolCallRequest,
+  mergedConfigurable: Record<string, unknown>,
+  options: ToolExecuteOptions,
+  req?: ServerRequest,
+): Promise<ToolExecuteResult> {
+  const { readSandboxFileBase64, reviewImages } = options;
+  const args = (tc.args ?? {}) as ReviewSlidesArgs;
+
+  const brief = typeof args.brief === 'string' ? args.brief.trim() : '';
+  if (!brief) {
+    return {
+      toolCallId: tc.id,
+      status: 'error',
+      content: '',
+      errorMessage:
+        '`brief` is required: pass the original request / what the deck should achieve so the reviewer knows the intent.',
+    };
+  }
+
+  const paths = Array.isArray(args.image_paths)
+    ? args.image_paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
+    : [];
+  if (paths.length === 0) {
+    return {
+      toolCallId: tc.id,
+      status: 'error',
+      content: '',
+      errorMessage:
+        '`image_paths` is required: pass the rendered slide image paths (e.g. ["/mnt/data/slide-01.jpg", ...]). Render the deck to images first.',
+    };
+  }
+
+  const codeEnvAvailable = mergedConfigurable?.codeEnvAvailable === true;
+  if (!codeEnvAvailable || !readSandboxFileBase64) {
+    return {
+      toolCallId: tc.id,
+      status: 'error',
+      content: '',
+      errorMessage:
+        'review_slides needs code execution (the images live in the sandbox) but it is not available for this agent. Inspect the rendered images manually with `read_file` instead.',
+    };
+  }
+  if (!reviewImages) {
+    return {
+      toolCallId: tc.id,
+      status: 'error',
+      content: '',
+      errorMessage:
+        'Visual review is not configured on this server. Inspect the rendered images yourself with `read_file`, then list issues and fix them.',
+    };
+  }
+
+  const ctx = tc.codeSessionContext as
+    | { session_id?: string; files?: Array<{ id: string; name: string; session_id?: string }> }
+    | undefined;
+
+  const prepared: PreparedReviewImage[] = [];
+  const skipped: string[] = [];
+  for (const filePath of paths.slice(0, MAX_REVIEW_IMAGES)) {
+    const mime = imageMimeForExt(lowercaseExtension(filePath));
+    if (!mime) {
+      skipped.push(`${filePath} (not a png/jpeg/gif/webp image)`);
+      continue;
+    }
+    try {
+      const result = await readSandboxFileBase64({
+        file_path: filePath,
+        session_id: ctx?.session_id,
+        files: ctx?.files,
+        ...(req ? { req } : {}),
+      });
+      const base64 = result?.base64;
+      if (!base64) {
+        skipped.push(`${filePath} (not found in the sandbox)`);
+        continue;
+      }
+      const approxBytes = Math.floor((base64.length * 3) / 4);
+      if (approxBytes < MIN_IMAGE_BYTES || approxBytes > MAX_BINARY_BYTES) {
+        skipped.push(`${filePath} (size out of range — empty/stub or too large)`);
+        continue;
+      }
+      if (!base64HeaderMatchesMime(base64, mime)) {
+        skipped.push(`${filePath} (bytes do not match a ${mime} image)`);
+        continue;
+      }
+      prepared.push({ mime, base64, path: filePath });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      skipped.push(`${filePath} (read failed: ${message})`);
+    }
+  }
+
+  if (prepared.length === 0) {
+    return {
+      toolCallId: tc.id,
+      status: 'error',
+      content: '',
+      errorMessage: `review_slides could not read any of the given images:\n- ${skipped.join('\n- ')}\nRe-render the slides to PNG/JPEG under /mnt/data and pass those paths.`,
+    };
+  }
+
+  try {
+    const review = await reviewImages({
+      images: prepared,
+      brief,
+      ...(Array.isArray(args.expectations) ? { expectations: args.expectations } : {}),
+      ...(req ? { req } : {}),
+    });
+    const header = `Fresh-eyes visual review of ${prepared.length} slide(s). Treat every issue as real and fix it, then re-render and review again until a pass is clean.`;
+    const skipNote = skipped.length > 0 ? `\n\n(Skipped: ${skipped.join('; ')})` : '';
+    return {
+      toolCallId: tc.id,
+      status: 'success',
+      content: `${header}\n\n${review}${skipNote}`,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(`[handleReviewSlidesCall] reviewer call failed: ${message}`);
+    return {
+      toolCallId: tc.id,
+      status: 'error',
+      content: '',
+      errorMessage: `The visual reviewer call failed: ${message}. Inspect the rendered images yourself with \`read_file\` and fix any issues.`,
+    };
+  }
+}
+
 /**
  * Creates the ON_TOOL_EXECUTE handler for event-driven tool execution.
  * This handler receives batched tool calls, loads the required tools,
@@ -1195,6 +1544,10 @@ export function createToolExecuteHandler(options: ToolExecuteOptions): EventHand
 
             const results: ToolExecuteResult[] = await Promise.all(
               toolCalls.map(async (tc: ToolCallRequest) => {
+                if (tc.name === REVIEW_SLIDES_TOOL_NAME) {
+                  const req = mergedConfigurable?.req as ServerRequest | undefined;
+                  return handleReviewSlidesCall(tc, mergedConfigurable, options, req);
+                }
                 if (tc.name === Constants.SKILL_TOOL || tc.name === Constants.READ_FILE) {
                   const req = mergedConfigurable?.req as ServerRequest | undefined;
                   const handlerResult =

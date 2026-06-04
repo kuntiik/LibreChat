@@ -889,6 +889,7 @@ export async function initializeAgent(
       includeBash: true,
       includeSkillFileInstructions: false,
       enableToolOutputReferences: effectiveCodeEnvAvailable,
+      includeReviewSlides: true,
     });
     toolDefinitions = codeExecResult.toolDefinitions;
   } else if (agentRequestsCodeExec) {

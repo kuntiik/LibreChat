@@ -373,7 +373,8 @@ export async function mintCodeApiToken(req: ServerRequest): Promise<string> {
 
 export async function getCodeApiAuthHeaders(req?: ServerRequest): Promise<Record<string, string>> {
   if (!req || !isCodeApiJwtAuthEnabled()) {
-    return {};
+    const apiKey = process.env.LIBRECHAT_CODE_API_KEY;
+    return apiKey ? { 'x-api-key': apiKey } : {};
   }
   const token = await mintCodeApiToken(req);
   return token ? { Authorization: `Bearer ${token}` } : {};

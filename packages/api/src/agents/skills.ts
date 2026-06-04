@@ -456,6 +456,7 @@ export async function injectSkillCatalog(
     toolDefinitions: workingDefs,
     includeBash: codeEnvAvailable === true,
     enableToolOutputReferences: codeEnvAvailable === true,
+    includeReviewSlides: codeEnvAvailable === true,
   });
   workingDefs = codeExecResult.toolDefinitions;
 

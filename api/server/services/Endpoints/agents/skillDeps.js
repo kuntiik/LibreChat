@@ -4,7 +4,9 @@ const {
   getSessionInfo,
   checkIfActive,
   readSandboxFile,
+  readSandboxFileBase64,
 } = require('~/server/services/Files/Code/process');
+const { reviewImages } = require('~/server/services/Endpoints/agents/reviewImages');
 const { enrichWithSkillConfigurable } = require('@librechat/api');
 const db = require('~/models');
 
@@ -79,6 +81,22 @@ const skillToolDeps = {
    * the agents-side `ToolNode` via `tc.codeSessionContext`.
    */
   readSandboxFile,
+  /**
+   * Sibling of `readSandboxFile` that fetches a file as base64 (via
+   * `base64 -w0` over `/exec`) so `read_file` can return a generated
+   * image to the model as a vision artifact for visual QA, instead of
+   * the "cannot be read as text" error. Same session/auth wiring.
+   */
+  readSandboxFileBase64,
+  /**
+   * Fresh-eyes visual QA for the `review_slides` tool: hands rendered
+   * slide images + the original brief to a second model (a different
+   * provider than the agent's, by default) that never saw the generation
+   * code, and returns its per-slide issue list. The handler
+   * (`handleReviewSlidesCall`) reads/guards the images; this just makes
+   * the reviewer LLM call. See docs/decisions/QA_FRESH_EYES_REVIEW.md.
+   */
+  reviewImages,
 };
 
 function getSkillToolDeps() {

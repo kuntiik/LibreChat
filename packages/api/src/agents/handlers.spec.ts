@@ -982,6 +982,7 @@ describe('createToolExecuteHandler', () => {
       activeSkillNames?: Set<string>;
       skillPrimedIdsByName?: Record<string, string>;
       readSandboxFile?: ToolExecuteOptions['readSandboxFile'];
+      readSandboxFileBase64?: ToolExecuteOptions['readSandboxFileBase64'];
       getSkillByName?: ToolExecuteOptions['getSkillByName'];
     }) {
       const loadTools: ToolExecuteOptions['loadTools'] = jest.fn(async () => ({
@@ -997,6 +998,7 @@ describe('createToolExecuteHandler', () => {
         loadTools,
         getSkillByName: params.getSkillByName,
         readSandboxFile: params.readSandboxFile,
+        readSandboxFileBase64: params.readSandboxFileBase64,
       });
     }
 
@@ -1403,6 +1405,100 @@ describe('createToolExecuteHandler', () => {
         expect(result.errorMessage).toContain('bash_tool');
       });
 
+      it('returns an image_url artifact for a sandbox image when readSandboxFileBase64 is wired (vision QA)', async () => {
+        const readSandboxFile = jest.fn();
+        // A real-enough JPEG: FFD8FF magic + padding past the MIN_IMAGE_BYTES floor.
+        const jpegBase64 = Buffer.concat([
+          Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+          Buffer.alloc(256),
+        ]).toString('base64');
+        const readSandboxFileBase64 = jest.fn(async () => ({ base64: jpegBase64 }));
+        const handler = makeReadFileHandler({
+          codeEnvAvailable: true,
+          accessibleSkillIds: skillsInScope(),
+          readSandboxFile,
+          readSandboxFileBase64,
+        });
+
+        const [result] = await invokeHandler(handler, [
+          {
+            id: 'call_qa_png',
+            name: Constants.READ_FILE,
+            args: { file_path: '/mnt/data/slide-01.jpg' },
+            codeSessionContext: {
+              session_id: 'sess-QA',
+              files: [{ id: 'f1', name: 'slide-01.jpg', session_id: 'sess-QA' }],
+            },
+          } as unknown as ToolCallRequest,
+        ]);
+
+        expect(readSandboxFileBase64).toHaveBeenCalledWith({
+          file_path: '/mnt/data/slide-01.jpg',
+          session_id: 'sess-QA',
+          files: [{ id: 'f1', name: 'slide-01.jpg', session_id: 'sess-QA' }],
+        });
+        // The lossy `cat` path must NOT be used for images.
+        expect(readSandboxFile).not.toHaveBeenCalled();
+        expect(result.status).toBe('success');
+        const artifact = result.artifact as { content?: Array<Record<string, unknown>> };
+        expect(artifact?.content?.[0]).toEqual({
+          type: 'image_url',
+          image_url: { url: `data:image/jpeg;base64,${jpegBase64}` },
+        });
+      });
+
+      it('falls back to the text error for a tiny/non-image stub (no poison artifact → no provider 400)', async () => {
+        // Regression: an uploaded image that never landed real bytes in the
+        // sandbox reads back as a ~40-byte stub. Shipping it as an image_url
+        // 400s the whole turn — the magic-byte + size guard must reject it.
+        const readSandboxFileBase64 = jest.fn(async () => ({ base64: 'QUJD' })); // "ABC"
+        const handler = makeReadFileHandler({
+          codeEnvAvailable: true,
+          accessibleSkillIds: skillsInScope(),
+          readSandboxFileBase64,
+        });
+
+        const [result] = await invokeHandler(handler, [
+          {
+            id: 'call_stub_jpg',
+            name: Constants.READ_FILE,
+            args: { file_path: '/mnt/data/imuno1.jpg' },
+            codeSessionContext: { session_id: 'sess-stub' },
+          } as unknown as ToolCallRequest,
+        ]);
+
+        expect(readSandboxFileBase64).toHaveBeenCalled();
+        expect(result.status).toBe('error');
+        expect(result.artifact).toBeUndefined();
+        expect(result.errorMessage).toContain('image file');
+        expect(result.errorMessage).toContain('bash_tool');
+      });
+
+      it('falls back to the text error when an oversize sandbox image exceeds the binary limit', async () => {
+        // ~7MB of base64 ⇒ ~5.25MB decoded, over the 5MB ceiling.
+        const oversize = 'A'.repeat(7 * 1024 * 1024);
+        const readSandboxFileBase64 = jest.fn(async () => ({ base64: oversize }));
+        const handler = makeReadFileHandler({
+          codeEnvAvailable: true,
+          accessibleSkillIds: skillsInScope(),
+          readSandboxFileBase64,
+        });
+
+        const [result] = await invokeHandler(handler, [
+          {
+            id: 'call_big_png',
+            name: Constants.READ_FILE,
+            args: { file_path: '/mnt/data/huge.png' },
+            codeSessionContext: { session_id: 'sess-Big' },
+          } as unknown as ToolCallRequest,
+        ]);
+
+        expect(readSandboxFileBase64).toHaveBeenCalled();
+        expect(result.status).toBe('error');
+        expect(result.errorMessage).toContain('image file');
+        expect(result.errorMessage).toContain('bash_tool');
+      });
+
       it('rejects non-image binary types with a bash-pointing message (not the image-attachment hint)', async () => {
         const readSandboxFile = jest.fn();
         const handler = makeReadFileHandler({
@@ -1551,6 +1647,156 @@ describe('createToolExecuteHandler', () => {
         expect(result.content).toContain('<svg');
         expect(result.content).toContain('viewBox');
       });
+    });
+  });
+
+  describe('review_slides fresh-eyes visual QA', () => {
+    // FFD8FF magic + padding past the MIN_IMAGE_BYTES floor.
+    const jpegBase64 = Buffer.concat([
+      Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+      Buffer.alloc(256),
+    ]).toString('base64');
+
+    function makeReviewHandler(params: {
+      codeEnvAvailable?: boolean;
+      readSandboxFileBase64?: ToolExecuteOptions['readSandboxFileBase64'];
+      reviewImages?: ToolExecuteOptions['reviewImages'];
+    }) {
+      const loadTools: ToolExecuteOptions['loadTools'] = jest.fn(async () => ({
+        loadedTools: [],
+        configurable: { codeEnvAvailable: params.codeEnvAvailable === true },
+      }));
+      return createToolExecuteHandler({
+        loadTools,
+        readSandboxFileBase64: params.readSandboxFileBase64,
+        reviewImages: params.reviewImages,
+      });
+    }
+
+    function reviewCall(args: Record<string, unknown>): ToolCallRequest {
+      return {
+        id: 'call_review',
+        name: 'review_slides',
+        args,
+        codeSessionContext: { session_id: 'sess-QA' },
+      } as unknown as ToolCallRequest;
+    }
+
+    it('reads each image, calls the reviewer with the brief, and returns its issue list', async () => {
+      const readSandboxFileBase64 = jest.fn(async () => ({ base64: jpegBase64 }));
+      const reviewImages = jest.fn(async () => 'Slide 1: overlapping title. VERDICT: needs fix');
+      const handler = makeReviewHandler({
+        codeEnvAvailable: true,
+        readSandboxFileBase64,
+        reviewImages,
+      });
+
+      const [result] = await invokeHandler(handler, [
+        reviewCall({
+          image_paths: ['/mnt/data/slide-01.jpg', '/mnt/data/slide-02.jpg'],
+          brief: 'A 2-slide deck about Mattoni 1873',
+        }),
+      ]);
+
+      expect(readSandboxFileBase64).toHaveBeenCalledTimes(2);
+      expect(reviewImages).toHaveBeenCalledTimes(1);
+      const arg = reviewImages.mock.calls[0][0] as {
+        images: Array<{ mime: string; path: string }>;
+        brief: string;
+      };
+      expect(arg.brief).toContain('Mattoni 1873');
+      expect(arg.images).toHaveLength(2);
+      expect(arg.images[0]).toMatchObject({ mime: 'image/jpeg', path: '/mnt/data/slide-01.jpg' });
+      expect(result.status).toBe('success');
+      expect(result.content).toContain('overlapping title');
+      expect(result.content).toContain('re-render and review again');
+    });
+
+    it('errors without a brief', async () => {
+      const handler = makeReviewHandler({
+        codeEnvAvailable: true,
+        readSandboxFileBase64: jest.fn(),
+        reviewImages: jest.fn(),
+      });
+      const [result] = await invokeHandler(handler, [
+        reviewCall({ image_paths: ['/mnt/data/slide-01.jpg'] }),
+      ]);
+      expect(result.status).toBe('error');
+      expect(result.errorMessage).toContain('brief');
+    });
+
+    it('errors without image_paths', async () => {
+      const handler = makeReviewHandler({
+        codeEnvAvailable: true,
+        readSandboxFileBase64: jest.fn(),
+        reviewImages: jest.fn(),
+      });
+      const [result] = await invokeHandler(handler, [reviewCall({ brief: 'a deck' })]);
+      expect(result.status).toBe('error');
+      expect(result.errorMessage).toContain('image_paths');
+    });
+
+    it('errors when code execution is unavailable', async () => {
+      const handler = makeReviewHandler({
+        codeEnvAvailable: false,
+        readSandboxFileBase64: jest.fn(),
+        reviewImages: jest.fn(),
+      });
+      const [result] = await invokeHandler(handler, [
+        reviewCall({ image_paths: ['/mnt/data/slide-01.jpg'], brief: 'a deck' }),
+      ]);
+      expect(result.status).toBe('error');
+      expect(result.errorMessage).toContain('code execution');
+    });
+
+    it('errors with a manual-inspection hint when the reviewer is not configured', async () => {
+      const handler = makeReviewHandler({
+        codeEnvAvailable: true,
+        readSandboxFileBase64: jest.fn(async () => ({ base64: jpegBase64 })),
+        reviewImages: undefined,
+      });
+      const [result] = await invokeHandler(handler, [
+        reviewCall({ image_paths: ['/mnt/data/slide-01.jpg'], brief: 'a deck' }),
+      ]);
+      expect(result.status).toBe('error');
+      expect(result.errorMessage).toContain('read_file');
+    });
+
+    it('errors when none of the images are readable (stub bytes)', async () => {
+      const reviewImages = jest.fn();
+      const handler = makeReviewHandler({
+        codeEnvAvailable: true,
+        readSandboxFileBase64: jest.fn(async () => ({ base64: 'QUJD' })), // "ABC"
+        reviewImages,
+      });
+      const [result] = await invokeHandler(handler, [
+        reviewCall({ image_paths: ['/mnt/data/slide-01.jpg'], brief: 'a deck' }),
+      ]);
+      expect(reviewImages).not.toHaveBeenCalled();
+      expect(result.status).toBe('error');
+      expect(result.errorMessage).toContain('could not read any');
+    });
+
+    it('skips non-image extensions but reviews the valid ones', async () => {
+      const readSandboxFileBase64 = jest.fn(async () => ({ base64: jpegBase64 }));
+      const reviewImages = jest.fn(async () => 'Slide 1: looks clean. VERDICT: CLEAN');
+      const handler = makeReviewHandler({
+        codeEnvAvailable: true,
+        readSandboxFileBase64,
+        reviewImages,
+      });
+      const [result] = await invokeHandler(handler, [
+        reviewCall({
+          image_paths: ['/mnt/data/deck.pptx', '/mnt/data/slide-01.jpg'],
+          brief: 'a deck',
+        }),
+      ]);
+      // .pptx never hits the sandbox read; only the image does.
+      expect(readSandboxFileBase64).toHaveBeenCalledTimes(1);
+      const arg = reviewImages.mock.calls[0][0] as { images: unknown[] };
+      expect(arg.images).toHaveLength(1);
+      expect(result.status).toBe('success');
+      expect(result.content).toContain('Skipped');
     });
   });
 });
