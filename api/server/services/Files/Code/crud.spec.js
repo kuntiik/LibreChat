@@ -104,7 +104,7 @@ describe('Code CRUD', () => {
         'https://code-api.example.com/download/session-1/file-1?kind=user&id=user-123',
       );
       expect(callConfig.responseType).toBe('stream');
-      expect(callConfig.timeout).toBe(15000);
+      expect(callConfig.timeout).toBe(60000);
     });
 
     it('forwards Code API auth headers when a request is provided', async () => {

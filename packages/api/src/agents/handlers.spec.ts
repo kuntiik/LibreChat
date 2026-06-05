@@ -1651,24 +1651,20 @@ describe('createToolExecuteHandler', () => {
   });
 
   describe('review_slides fresh-eyes visual QA', () => {
-    // FFD8FF magic + padding past the MIN_IMAGE_BYTES floor.
-    const jpegBase64 = Buffer.concat([
-      Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
-      Buffer.alloc(256),
-    ]).toString('base64');
-
+    // The handler is thin: it validates args and delegates image-sourcing
+    // + the vision call to the injected `reviewImages` (server-side, reads
+    // persisted conversation files). These tests cover the handler's
+    // validation, delegation contract, and error surfacing.
     function makeReviewHandler(params: {
-      codeEnvAvailable?: boolean;
-      readSandboxFileBase64?: ToolExecuteOptions['readSandboxFileBase64'];
+      conversationId?: string;
       reviewImages?: ToolExecuteOptions['reviewImages'];
     }) {
       const loadTools: ToolExecuteOptions['loadTools'] = jest.fn(async () => ({
         loadedTools: [],
-        configurable: { codeEnvAvailable: params.codeEnvAvailable === true },
+        configurable: { conversationId: params.conversationId },
       }));
       return createToolExecuteHandler({
         loadTools,
-        readSandboxFileBase64: params.readSandboxFileBase64,
         reviewImages: params.reviewImages,
       });
     }
@@ -1678,125 +1674,82 @@ describe('createToolExecuteHandler', () => {
         id: 'call_review',
         name: 'review_slides',
         args,
-        codeSessionContext: { session_id: 'sess-QA' },
       } as unknown as ToolCallRequest;
     }
 
-    it('reads each image, calls the reviewer with the brief, and returns its issue list', async () => {
-      const readSandboxFileBase64 = jest.fn(async () => ({ base64: jpegBase64 }));
+    it('delegates to reviewImages with the paths + brief + conversationId and returns its issue list', async () => {
       const reviewImages = jest.fn(async () => 'Slide 1: overlapping title. VERDICT: needs fix');
-      const handler = makeReviewHandler({
-        codeEnvAvailable: true,
-        readSandboxFileBase64,
-        reviewImages,
-      });
+      const handler = makeReviewHandler({ conversationId: 'convo-xyz', reviewImages });
 
       const [result] = await invokeHandler(handler, [
         reviewCall({
-          image_paths: ['/mnt/data/slide-01.jpg', '/mnt/data/slide-02.jpg'],
+          image_paths: ['/mnt/data/slide-01.png', '/mnt/data/slide-02.png'],
           brief: 'A 2-slide deck about Mattoni 1873',
+          expectations: ['Title', 'Content'],
         }),
       ]);
 
-      expect(readSandboxFileBase64).toHaveBeenCalledTimes(2);
       expect(reviewImages).toHaveBeenCalledTimes(1);
       const arg = reviewImages.mock.calls[0][0] as {
-        images: Array<{ mime: string; path: string }>;
+        imagePaths: string[];
         brief: string;
+        conversationId: string;
+        expectations: string[];
       };
+      expect(arg.imagePaths).toEqual(['/mnt/data/slide-01.png', '/mnt/data/slide-02.png']);
       expect(arg.brief).toContain('Mattoni 1873');
-      expect(arg.images).toHaveLength(2);
-      expect(arg.images[0]).toMatchObject({ mime: 'image/jpeg', path: '/mnt/data/slide-01.jpg' });
+      expect(arg.conversationId).toBe('convo-xyz');
+      expect(arg.expectations).toEqual(['Title', 'Content']);
       expect(result.status).toBe('success');
       expect(result.content).toContain('overlapping title');
-      expect(result.content).toContain('re-render and review again');
+      expect(result.content).toContain('call review_slides again');
+    });
+
+    it('caps the number of images forwarded to the reviewer', async () => {
+      const reviewImages = jest.fn(async () => 'ok');
+      const handler = makeReviewHandler({ conversationId: 'c', reviewImages });
+      const many = Array.from({ length: 30 }, (_, i) => `/mnt/data/s-${i}.png`);
+      await invokeHandler(handler, [reviewCall({ image_paths: many, brief: 'deck' })]);
+      const arg = reviewImages.mock.calls[0][0] as { imagePaths: string[] };
+      expect(arg.imagePaths.length).toBeLessThanOrEqual(20);
     });
 
     it('errors without a brief', async () => {
-      const handler = makeReviewHandler({
-        codeEnvAvailable: true,
-        readSandboxFileBase64: jest.fn(),
-        reviewImages: jest.fn(),
-      });
+      const handler = makeReviewHandler({ conversationId: 'c', reviewImages: jest.fn() });
       const [result] = await invokeHandler(handler, [
-        reviewCall({ image_paths: ['/mnt/data/slide-01.jpg'] }),
+        reviewCall({ image_paths: ['/mnt/data/slide-01.png'] }),
       ]);
       expect(result.status).toBe('error');
       expect(result.errorMessage).toContain('brief');
     });
 
     it('errors without image_paths', async () => {
-      const handler = makeReviewHandler({
-        codeEnvAvailable: true,
-        readSandboxFileBase64: jest.fn(),
-        reviewImages: jest.fn(),
-      });
+      const handler = makeReviewHandler({ conversationId: 'c', reviewImages: jest.fn() });
       const [result] = await invokeHandler(handler, [reviewCall({ brief: 'a deck' })]);
       expect(result.status).toBe('error');
       expect(result.errorMessage).toContain('image_paths');
     });
 
-    it('errors when code execution is unavailable', async () => {
-      const handler = makeReviewHandler({
-        codeEnvAvailable: false,
-        readSandboxFileBase64: jest.fn(),
-        reviewImages: jest.fn(),
-      });
-      const [result] = await invokeHandler(handler, [
-        reviewCall({ image_paths: ['/mnt/data/slide-01.jpg'], brief: 'a deck' }),
-      ]);
-      expect(result.status).toBe('error');
-      expect(result.errorMessage).toContain('code execution');
-    });
-
     it('errors with a manual-inspection hint when the reviewer is not configured', async () => {
-      const handler = makeReviewHandler({
-        codeEnvAvailable: true,
-        readSandboxFileBase64: jest.fn(async () => ({ base64: jpegBase64 })),
-        reviewImages: undefined,
-      });
+      const handler = makeReviewHandler({ conversationId: 'c', reviewImages: undefined });
       const [result] = await invokeHandler(handler, [
-        reviewCall({ image_paths: ['/mnt/data/slide-01.jpg'], brief: 'a deck' }),
+        reviewCall({ image_paths: ['/mnt/data/slide-01.png'], brief: 'a deck' }),
       ]);
       expect(result.status).toBe('error');
       expect(result.errorMessage).toContain('read_file');
     });
 
-    it('errors when none of the images are readable (stub bytes)', async () => {
-      const reviewImages = jest.fn();
-      const handler = makeReviewHandler({
-        codeEnvAvailable: true,
-        readSandboxFileBase64: jest.fn(async () => ({ base64: 'QUJD' })), // "ABC"
-        reviewImages,
+    it('surfaces a reviewImages failure (e.g. no stored files) as a tool error', async () => {
+      const reviewImages = jest.fn(async () => {
+        throw new Error('none of the named slides resolved to a stored image file');
       });
+      const handler = makeReviewHandler({ conversationId: 'c', reviewImages });
       const [result] = await invokeHandler(handler, [
-        reviewCall({ image_paths: ['/mnt/data/slide-01.jpg'], brief: 'a deck' }),
+        reviewCall({ image_paths: ['/mnt/data/slide-01.png'], brief: 'a deck' }),
       ]);
-      expect(reviewImages).not.toHaveBeenCalled();
       expect(result.status).toBe('error');
-      expect(result.errorMessage).toContain('could not read any');
-    });
-
-    it('skips non-image extensions but reviews the valid ones', async () => {
-      const readSandboxFileBase64 = jest.fn(async () => ({ base64: jpegBase64 }));
-      const reviewImages = jest.fn(async () => 'Slide 1: looks clean. VERDICT: CLEAN');
-      const handler = makeReviewHandler({
-        codeEnvAvailable: true,
-        readSandboxFileBase64,
-        reviewImages,
-      });
-      const [result] = await invokeHandler(handler, [
-        reviewCall({
-          image_paths: ['/mnt/data/deck.pptx', '/mnt/data/slide-01.jpg'],
-          brief: 'a deck',
-        }),
-      ]);
-      // .pptx never hits the sandbox read; only the image does.
-      expect(readSandboxFileBase64).toHaveBeenCalledTimes(1);
-      const arg = reviewImages.mock.calls[0][0] as { images: unknown[] };
-      expect(arg.images).toHaveLength(1);
-      expect(result.status).toBe('success');
-      expect(result.content).toContain('Skipped');
+      expect(result.errorMessage).toContain('Visual review could not run');
+      expect(result.errorMessage).toContain('resolved to a stored image file');
     });
   });
 });

@@ -255,6 +255,14 @@ const startServer = async () => {
       process.exit(1);
     }
 
+    // Agent runs (e.g. deck builds with code execution + visual QA) can
+    // exceed Node's default 300s requestTimeout, which would kill the
+    // HTTP connection and abort the run mid-flight. Lift the per-request
+    // ceiling for these long tool-driven turns.
+    server.requestTimeout = 0;
+    server.headersTimeout = 0;
+    server.keepAliveTimeout = 24 * 60 * 60 * 1000;
+
     if (host === '0.0.0.0') {
       logger.info(
         `Server listening on all interfaces at port ${port}. Use http://localhost:${port} to access it`,

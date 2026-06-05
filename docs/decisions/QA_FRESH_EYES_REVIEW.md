@@ -52,14 +52,15 @@ The reviewer prompt + contract below port directly.
 agent (gpt-5.4, OpenAI)
   └─ calls tool: review_slides({ image_paths[], brief, expectations? })
         │
-   handlers.ts handleReviewSlidesCall
-        │  reads each image as base64  (readSandboxFileBase64 — D1 infra)
-        │  guards: imageMimeForExt + base64HeaderMatchesMime + size floor/ceiling
+   handlers.ts handleReviewSlidesCall  (THIN: validate + delegate)
+        │  passes imagePaths + brief + conversationId + req
         ▼
-   options.reviewImages({ images, brief, expectations, req })   ← injected dep
+   options.reviewImages({ imagePaths, brief, expectations, conversationId, req })  ← injected dep
         │  (api/server/.../reviewImages.js)
+        │  resolveImages: getFiles({conversationId}) → match by basename (newest)
+        │                 → read bytes from storage (getStrategyFunctions) → base64
         ▼
-   Anthropic Claude (vision)  ← DIFFERENT provider than the agent = truly fresh eyes
+   OpenAI gpt-4o (vision)  ← reviewer never saw the code = fresh eyes (default; anthropic opt-in)
         │  system = the skill's inspection checklist
         │  user   = brief + per-slide image blocks
         ▼
@@ -67,16 +68,41 @@ agent (gpt-5.4, OpenAI)
         → agent fixes, re-renders, calls review_slides again
 ```
 
+### Why persisted files, not the live sandbox (important)
+
+The upstream `@librechat/agents` `ToolNode` attaches a `codeSessionContext`
+(the sandbox `session_id` + file map) **only** to tools it recognizes —
+`CODE_EXECUTION_TOOLS`, `skill`, and `read_file`. `review_slides` is a
+LibreChat-local tool unknown to upstream, so it receives **no session
+context** and therefore cannot read the ephemeral sandbox. (Discovered
+during verification: the model called `review_slides` fine, but image
+reads dead-ended.)
+
+Rather than patch node_modules (no patch-package here — fragile), the
+reviewer resolves the slides from the **conversation's persisted files**:
+every rendered slide is saved to storage (with `conversationId`) and
+surfaced as an attachment *before* the model calls `review_slides`. We
+match the model's `image_paths` to those files by basename (newest wins),
+and read bytes via the storage strategy. Bonus: this survives the 5-min
+sandbox reaping and reviews exactly what the user sees.
+
 ### Reviewer model
 
-- Default: **Anthropic Claude** (vision) via `ANTHROPIC_API_KEY`. The
-  deck-builder agent is OpenAI/gpt-5.4, so a different provider maximizes
-  independence ("fresh eyes" in the strongest sense).
+"Fresh eyes" comes from the reviewer **never seeing the generation code**,
+not from the provider — so any capable vision model works.
+
+- Default: **OpenAI gpt-4o** (vision) via `OPENAI_API_KEY` — the provider
+  actually wired in this deployment. (`ANTHROPIC_API_KEY` here is a 13-char
+  placeholder, so Anthropic 401s; the original "different provider" idea
+  was dropped when that surfaced during verification.) The deck-builder
+  agent is gpt-5.4, so the reviewer is at least a different *model*.
 - Overridable via env (see `reviewImages.js`):
-  - `QA_REVIEW_PROVIDER` (`anthropic` | `openai`, default `anthropic`)
-  - `QA_REVIEW_MODEL` (default a current Claude vision model)
-  - `QA_REVIEW_API_KEY` (falls back to `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`)
+  - `QA_REVIEW_PROVIDER` (`openai` default | `anthropic`)
+  - `QA_REVIEW_MODEL` (default `gpt-4o`)
+  - `QA_REVIEW_API_KEY` (falls back to `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`)
   - `QA_REVIEW_BASE_URL` (OpenAI-compatible gateway, optional)
+- If a real Anthropic key is added later, set `QA_REVIEW_PROVIDER=anthropic`
+  for true cross-provider independence.
 
 ### Tool contract
 
@@ -96,15 +122,23 @@ same pattern as `read_file` and `skill`.
 
 ## Files touched
 
-- `packages/api/src/agents/tools.ts` — `REVIEW_SLIDES_DEF` + registration.
+- `packages/api/src/agents/tools.ts` — `REVIEW_SLIDES_DEF` + registration
+  (gated on code execution, alongside `read_file`/`bash_tool`).
 - `packages/api/src/agents/handlers.ts` — `reviewImages` dep on
-  `ToolExecuteOptions`, `handleReviewSlidesCall`, dispatch branch.
+  `ToolExecuteOptions`, thin `handleReviewSlidesCall`, dispatch branch
+  (passes `conversationId` from `configurable`/`metadata.thread_id`).
+- `packages/api/src/agents/{initialize,skills}.ts` — `includeReviewSlides`.
 - `packages/api/src/agents/handlers.spec.ts` — unit tests.
-- `api/server/services/Endpoints/agents/reviewImages.js` — the vision call.
+- `api/server/services/Endpoints/agents/reviewImages.js` — resolves
+  persisted slide files + makes the vision call.
 - `api/server/services/Endpoints/agents/skillDeps.js` — wires `reviewImages`.
 - `api/server/services/ToolService.js` — `review_slides` in `specialToolNames`.
+- `api/server/index.js` — lifted Node's default 300s `requestTimeout`
+  (`requestTimeout=0`, `headersTimeout=0`, long `keepAliveTimeout`): agent
+  runs with code execution + visual QA routinely exceed 5 min, and the
+  default would kill the HTTP connection and abort the run mid-flight.
 - pptx skill body (DB-seeded) — QA section now instructs `review_slides`
-  + a mandatory fix-and-verify loop instead of "USE SUBAGENTS".
+  + a mandatory fix-and-re-render loop instead of "USE SUBAGENTS".
 
 ## Build / activate
 

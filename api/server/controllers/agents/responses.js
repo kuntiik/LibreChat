@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { logger } = require('@librechat/data-schemas');
 const { Callback, ToolEndHandler, formatAgentMessages } = require('@librechat/agents');
 const {
+  Constants,
   EModelEndpoint,
   ResourceType,
   PermissionBits,
@@ -146,22 +147,38 @@ async function loadPreviousMessages(conversationId, userId) {
 }
 
 /**
- * Save input messages to database
+ * Build the saveMessage/saveConvo context from the Express request.
+ * `db.saveMessage` destructures `{ userId, isTemporary, interfaceConfig }` and
+ * throws 'User not authenticated' if userId is missing — passing the raw `req`
+ * (which carries `req.user.id`, not `req.userId`) silently fails the save.
  * @param {import('express').Request} req
- * @param {string} conversationId
- * @param {Array} inputMessages - Internal format messages
- * @param {string} agentId
- * @returns {Promise<void>}
+ * @returns {{ userId: string, isTemporary?: boolean, interfaceConfig?: object }}
+ */
+function buildSaveCtx(req) {
+  return {
+    userId: req?.user?.id,
+    isTemporary: req?.body?.isTemporary,
+    interfaceConfig: req?.config?.interfaceConfig,
+  };
+}
+
+/**
+ * Save input messages to the database.
+ * @returns {Promise<string>} messageId of the last saved user message, to be
+ *   used as the assistant response's parentMessageId (so the tree renders).
  */
 async function saveInputMessages(req, conversationId, inputMessages, agentId) {
+  const ctx = buildSaveCtx(req);
+  let lastUserMessageId = Constants.NO_PARENT;
   for (const msg of inputMessages) {
     if (msg.role === 'user') {
+      const messageId = msg.messageId || nanoid();
       await db.saveMessage(
-        req,
+        ctx,
         {
-          messageId: msg.messageId || nanoid(),
+          messageId,
           conversationId,
-          parentMessageId: null,
+          parentMessageId: lastUserMessageId,
           isCreatedByUser: true,
           text: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
           sender: 'User',
@@ -170,8 +187,10 @@ async function saveInputMessages(req, conversationId, inputMessages, agentId) {
         },
         { context: 'Responses API - save user input' },
       );
+      lastUserMessageId = messageId;
     }
   }
+  return lastUserMessageId;
 }
 
 /**
@@ -183,7 +202,14 @@ async function saveInputMessages(req, conversationId, inputMessages, agentId) {
  * @param {string} agentId
  * @returns {Promise<void>}
  */
-async function saveResponseOutput(req, conversationId, responseId, response, agentId) {
+async function saveResponseOutput(
+  req,
+  conversationId,
+  responseId,
+  response,
+  agentId,
+  parentMessageId,
+) {
   // Extract text content from output items
   let responseText = '';
   for (const item of response.output) {
@@ -198,11 +224,11 @@ async function saveResponseOutput(req, conversationId, responseId, response, age
 
   // Save the assistant message
   await db.saveMessage(
-    req,
+    buildSaveCtx(req),
     {
       messageId: responseId,
       conversationId,
-      parentMessageId: null,
+      parentMessageId: parentMessageId ?? Constants.NO_PARENT,
       isCreatedByUser: false,
       text: responseText,
       sender: 'Agent',
@@ -233,7 +259,7 @@ async function saveConversation(req, conversationId, agentId, agent) {
     {
       conversationId,
       endpoint: EModelEndpoint.agents,
-      agentId,
+      agent_id: agentId,
       title: agent?.name || 'Open Responses Conversation',
       model: agent?.model,
     },
@@ -769,11 +795,23 @@ const createResponse = async (req, res) => {
           await saveConversation(req, conversationId, agentId, agent);
 
           // Save input messages
-          await saveInputMessages(req, conversationId, inputMessages, agentId);
+          const parentMessageId = await saveInputMessages(
+            req,
+            conversationId,
+            inputMessages,
+            agentId,
+          );
 
           // Build response for saving (use tracker with buildResponse for streaming)
           const finalResponse = buildResponse(context, tracker, 'completed');
-          await saveResponseOutput(req, conversationId, responseId, finalResponse, agentId);
+          await saveResponseOutput(
+            req,
+            conversationId,
+            responseId,
+            finalResponse,
+            agentId,
+            parentMessageId,
+          );
 
           logger.debug(
             `[Responses API] Stored response ${responseId} in conversation ${conversationId}`,
@@ -942,9 +980,21 @@ const createResponse = async (req, res) => {
         try {
           await saveConversation(req, conversationId, agentId, agent);
 
-          await saveInputMessages(req, conversationId, inputMessages, agentId);
+          const parentMessageId = await saveInputMessages(
+            req,
+            conversationId,
+            inputMessages,
+            agentId,
+          );
 
-          await saveResponseOutput(req, conversationId, responseId, response, agentId);
+          await saveResponseOutput(
+            req,
+            conversationId,
+            responseId,
+            response,
+            agentId,
+            parentMessageId,
+          );
 
           logger.debug(
             `[Responses API] Stored response ${responseId} in conversation ${conversationId}`,

@@ -43,7 +43,7 @@ async function getCodeOutputDownloadStream(fileIdentifier, identity, req) {
       },
       httpAgent: codeServerHttpAgent,
       httpsAgent: codeServerHttpsAgent,
-      timeout: 15000,
+      timeout: 60000,
     };
 
     const response = await axios(options);

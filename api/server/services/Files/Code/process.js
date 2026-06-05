@@ -354,7 +354,7 @@ const processCodeOutput = async ({
       },
       httpAgent: codeServerHttpAgent,
       httpsAgent: codeServerHttpsAgent,
-      timeout: 15000,
+      timeout: 60000,
     });
 
     const buffer = Buffer.from(response.data, 'binary');

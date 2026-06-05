@@ -41,7 +41,11 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   const fileMap = useFileMapContext();
 
-  const { data: messagesTree = null, isLoading } = useGetMessagesByConvoId(
+  const {
+    data: messagesTree = null,
+    isLoading,
+    isFetched,
+  } = useGetMessagesByConvoId(
     conversationId ?? '',
     {
       select: useCallback(
@@ -69,7 +73,12 @@ function ChatView({ index = 0 }: { index?: number }) {
   const isLandingPage =
     (!messagesTree || messagesTree.length === 0) &&
     (conversationId === Constants.NEW_CONVO || !conversationId);
-  const isNavigating = (!messagesTree || messagesTree.length === 0) && conversationId != null;
+  // Only "navigating" until the messages query settles. Without the `!isFetched`
+  // guard, an existing conversation with zero persisted messages would spin
+  // forever (empty tree + real id never resolves). Once fetched, fall through to
+  // MessagesView, which renders its own empty state.
+  const isNavigating =
+    (!messagesTree || messagesTree.length === 0) && conversationId != null && !isFetched;
 
   if (isLoading && conversationId !== Constants.NEW_CONVO) {
     content = <LoadingSpinner />;

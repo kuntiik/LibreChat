@@ -163,20 +163,23 @@ export interface ToolExecuteOptions {
     req?: ServerRequest;
   }) => Promise<{ base64: string } | null>;
   /**
-   * Fresh-eyes visual QA: hands rendered slide images + the original
-   * brief to a SECOND model (a different provider than the agent's, by
-   * default) that never saw the generation code, and returns its
-   * per-slide issue list as text. Powers the `review_slides` tool — see
-   * `docs/decisions/QA_FRESH_EYES_REVIEW.md`. Injected host-side
-   * (`reviewImages.js`) because the LLM-client wiring lives in
-   * `api/server`, not this package. Absent ⇒ `review_slides` returns an
-   * instructive error telling the model to fall back to manual
-   * `read_file` inspection.
+   * Fresh-eyes visual QA: resolves the named rendered slides from the
+   * conversation's PERSISTED files (the sandbox isn't reachable from a
+   * tool the upstream ToolNode doesn't recognize), then hands the images +
+   * the original brief to a SECOND model that never saw the generation
+   * code, returning its per-slide issue list as text. Powers the
+   * `review_slides` tool — see `docs/decisions/QA_FRESH_EYES_REVIEW.md`.
+   * Injected host-side (`reviewImages.js`) because the file storage +
+   * LLM-client wiring lives in `api/server`, not this package. Absent ⇒
+   * `review_slides` returns an instructive error telling the model to fall
+   * back to manual `read_file` inspection. Throws when no named slide
+   * resolves to a stored file (the handler surfaces it as a tool error).
    */
   reviewImages?: (params: {
-    images: Array<{ mime: string; base64: string; path: string }>;
+    imagePaths: string[];
     brief: string;
     expectations?: string[];
+    conversationId?: string;
     req?: ServerRequest;
   }) => Promise<string>;
 }
@@ -1375,29 +1378,24 @@ interface ReviewSlidesArgs {
   expectations?: string[];
 }
 
-interface PreparedReviewImage {
-  mime: string;
-  base64: string;
-  path: string;
-}
-
 /**
- * Executes the `review_slides` fresh-eyes visual-QA tool. Reads each
- * rendered slide image from the sandbox as base64 (reusing the D1
- * `readSandboxFileBase64` infra + the same magic-byte/size guards as the
- * `read_file` image path), then hands the images + the original brief to
- * a SECOND model via the injected `reviewImages` callback — a reviewer
- * that never saw the generation code, so its eyes are genuinely fresh.
- * Returns the reviewer's per-slide issue list as tool text the agent must
- * then act on. See `docs/decisions/QA_FRESH_EYES_REVIEW.md`.
+ * Executes the `review_slides` fresh-eyes visual-QA tool. Thin by design:
+ * a tool the upstream `ToolNode` doesn't know about never receives a
+ * `codeSessionContext`, so it can't read the ephemeral sandbox. Instead it
+ * delegates to the injected `reviewImages` callback, which resolves the
+ * rendered slides from the conversation's PERSISTED files (saved to storage
+ * the moment they were rendered, before this call) and hands them + the
+ * brief to a SECOND model that never saw the generation code. Returns the
+ * reviewer's per-slide issue list as tool text the agent must act on. See
+ * `docs/decisions/QA_FRESH_EYES_REVIEW.md`.
  */
 async function handleReviewSlidesCall(
   tc: ToolCallRequest,
-  mergedConfigurable: Record<string, unknown>,
+  conversationId: string | undefined,
   options: ToolExecuteOptions,
   req?: ServerRequest,
 ): Promise<ToolExecuteResult> {
-  const { readSandboxFileBase64, reviewImages } = options;
+  const { reviewImages } = options;
   const args = (tc.args ?? {}) as ReviewSlidesArgs;
 
   const brief = typeof args.brief === 'string' ? args.brief.trim() : '';
@@ -1411,29 +1409,21 @@ async function handleReviewSlidesCall(
     };
   }
 
-  const paths = Array.isArray(args.image_paths)
-    ? args.image_paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
+  const imagePaths = Array.isArray(args.image_paths)
+    ? args.image_paths
+        .filter((p): p is string => typeof p === 'string' && p.length > 0)
+        .slice(0, MAX_REVIEW_IMAGES)
     : [];
-  if (paths.length === 0) {
+  if (imagePaths.length === 0) {
     return {
       toolCallId: tc.id,
       status: 'error',
       content: '',
       errorMessage:
-        '`image_paths` is required: pass the rendered slide image paths (e.g. ["/mnt/data/slide-01.jpg", ...]). Render the deck to images first.',
+        '`image_paths` is required: pass the rendered slide image paths (e.g. ["/mnt/data/slide-01.png", ...]). Render the deck to images first.',
     };
   }
 
-  const codeEnvAvailable = mergedConfigurable?.codeEnvAvailable === true;
-  if (!codeEnvAvailable || !readSandboxFileBase64) {
-    return {
-      toolCallId: tc.id,
-      status: 'error',
-      content: '',
-      errorMessage:
-        'review_slides needs code execution (the images live in the sandbox) but it is not available for this agent. Inspect the rendered images manually with `read_file` instead.',
-    };
-  }
   if (!reviewImages) {
     return {
       toolCallId: tc.id,
@@ -1444,77 +1434,29 @@ async function handleReviewSlidesCall(
     };
   }
 
-  const ctx = tc.codeSessionContext as
-    | { session_id?: string; files?: Array<{ id: string; name: string; session_id?: string }> }
-    | undefined;
-
-  const prepared: PreparedReviewImage[] = [];
-  const skipped: string[] = [];
-  for (const filePath of paths.slice(0, MAX_REVIEW_IMAGES)) {
-    const mime = imageMimeForExt(lowercaseExtension(filePath));
-    if (!mime) {
-      skipped.push(`${filePath} (not a png/jpeg/gif/webp image)`);
-      continue;
-    }
-    try {
-      const result = await readSandboxFileBase64({
-        file_path: filePath,
-        session_id: ctx?.session_id,
-        files: ctx?.files,
-        ...(req ? { req } : {}),
-      });
-      const base64 = result?.base64;
-      if (!base64) {
-        skipped.push(`${filePath} (not found in the sandbox)`);
-        continue;
-      }
-      const approxBytes = Math.floor((base64.length * 3) / 4);
-      if (approxBytes < MIN_IMAGE_BYTES || approxBytes > MAX_BINARY_BYTES) {
-        skipped.push(`${filePath} (size out of range — empty/stub or too large)`);
-        continue;
-      }
-      if (!base64HeaderMatchesMime(base64, mime)) {
-        skipped.push(`${filePath} (bytes do not match a ${mime} image)`);
-        continue;
-      }
-      prepared.push({ mime, base64, path: filePath });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      skipped.push(`${filePath} (read failed: ${message})`);
-    }
-  }
-
-  if (prepared.length === 0) {
-    return {
-      toolCallId: tc.id,
-      status: 'error',
-      content: '',
-      errorMessage: `review_slides could not read any of the given images:\n- ${skipped.join('\n- ')}\nRe-render the slides to PNG/JPEG under /mnt/data and pass those paths.`,
-    };
-  }
-
   try {
     const review = await reviewImages({
-      images: prepared,
+      imagePaths,
       brief,
       ...(Array.isArray(args.expectations) ? { expectations: args.expectations } : {}),
+      ...(conversationId ? { conversationId } : {}),
       ...(req ? { req } : {}),
     });
-    const header = `Fresh-eyes visual review of ${prepared.length} slide(s). Treat every issue as real and fix it, then re-render and review again until a pass is clean.`;
-    const skipNote = skipped.length > 0 ? `\n\n(Skipped: ${skipped.join('; ')})` : '';
+    const header =
+      'Fresh-eyes visual review (a reviewer that did not see your code). Treat every issue as real and fix it, then re-render and call review_slides again until a pass is clean.';
     return {
       toolCallId: tc.id,
       status: 'success',
-      content: `${header}\n\n${review}${skipNote}`,
+      content: `${header}\n\n${review}`,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.warn(`[handleReviewSlidesCall] reviewer call failed: ${message}`);
+    logger.warn(`[handleReviewSlidesCall] review failed: ${message}`);
     return {
       toolCallId: tc.id,
       status: 'error',
       content: '',
-      errorMessage: `The visual reviewer call failed: ${message}. Inspect the rendered images yourself with \`read_file\` and fix any issues.`,
+      errorMessage: `Visual review could not run: ${message}. Make sure the slides were rendered to PNG/JPEG (their files must exist), or inspect them yourself with \`read_file\`.`,
     };
   }
 }
@@ -1546,7 +1488,10 @@ export function createToolExecuteHandler(options: ToolExecuteOptions): EventHand
               toolCalls.map(async (tc: ToolCallRequest) => {
                 if (tc.name === REVIEW_SLIDES_TOOL_NAME) {
                   const req = mergedConfigurable?.req as ServerRequest | undefined;
-                  return handleReviewSlidesCall(tc, mergedConfigurable, options, req);
+                  const conversationId =
+                    (mergedConfigurable?.conversationId as string | undefined) ??
+                    ((metadata as Record<string, unknown>)?.thread_id as string | undefined);
+                  return handleReviewSlidesCall(tc, conversationId, options, req);
                 }
                 if (tc.name === Constants.SKILL_TOOL || tc.name === Constants.READ_FILE) {
                   const req = mergedConfigurable?.req as ServerRequest | undefined;

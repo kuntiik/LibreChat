@@ -182,7 +182,10 @@
       "data/",
       "client/",
       "admin/",
-      "packages/"
+      "packages/",
+      "uploads/",
+      "images/",
+      "logs/"
     ]
   }
 }
