@@ -170,3 +170,237 @@ Multi-line imports count total character length across all lines. Consolidate va
 ## Formatting
 
 Fix all formatting lint errors (trailing spaces, tabs, newlines, indentation) using auto-fix when available. All TypeScript/ESLint warnings and errors **must** be resolved.
+
+---
+
+## Local code-interpreter stack (Lukáš's setup)
+
+**Important:** active code-interpreter work does NOT happen in this repo. This
+clone is the Mattoni fork — kept untouched. The live stack lives in two sibling
+clones:
+
+```
+/Users/kuntik/work/
+├── LibreChat                          ← this repo (Mattoni fork, do not disturb)
+├── LibreChat-086                      ← release_8.6 from kuntiik/LibreChat (active)
+└── Librechat-Daytona-Interpreter      ← Janecv0 fork (active, on `feat/skills-image`)
+```
+
+**Read first:** `/Users/kuntik/work/LibreChat-086/CODE_INTERPRETER_HANDOFF.md`
+for the full picture (env wiring, two upstream patches, quick-start commands).
+
+**Driving the agent over API + vision QA:**
+`/Users/kuntik/work/LibreChat-086/AGENT_API_DRIVER.md` — the `tools/lc-agent.mjs`
+driver (send a message to an agent over the Open Responses API and read the
+output back, no copy-paste of UI exports; key in `.agent-api-key`,
+`REMOTE_AGENTS` enabled on ADMIN), plus the D1 `read_file` vision-readback fix
+(rendered images come back as `image_url` artifacts so the model can QA its own
+output) and why image URLs/uploads don't reach the sandbox.
+
+**Fresh-eyes slide review (`review_slides` tool) — status 2026-06-04:**
+Full detail in `/Users/kuntik/work/LibreChat-086/docs/decisions/QA_FRESH_EYES_REVIEW.md`.
+The `review_slides` tool gives the deck-builder a SECOND model (it never saw the
+generation code) that critiques the rendered slides, instead of self-QA via
+`read_file` (confirmation bias → ships unchanged decks).
+
+- **Was committed broken** (commit `2d190f05a` v1): read the live sandbox (a
+  custom tool gets no `codeSessionContext` from upstream `ToolNode`, so it never
+  found the images) AND defaulted to Anthropic (the `ANTHROPIC_API_KEY` here is a
+  placeholder → 401). The pptx skill also still said "USE SUBAGENTS", so the
+  model never even called the tool.
+- **Fixed this session (uncommitted in -086 working tree):**
+  - `reviewImages.js` now resolves slides from the conversation's **persisted
+    files** (basename match + storage read, bounded poll for the async upload
+    lag) — no sandbox dependency. Default reviewer flipped to **OpenAI gpt-4o**
+    (working provider); Anthropic opt-in via `QA_REVIEW_PROVIDER`.
+  - `handlers.ts` `handleReviewSlidesCall` is thin (validate + delegate, passes
+    `conversationId`). `api/server/index.js` lifts Node's 300s `requestTimeout`
+    (agent+QA runs exceed it). pptx skill (DB) rewritten to call `review_slides`
+    + mandatory fix-and-re-render loop.
+- **Verified:** 79 agent unit tests pass; a deterministic `reviewImages` run
+  returned a real per-slide critique; the live agent emits `review_slides` and
+  the chain reaches `reviewImages` with the right `conversationId`.
+- **Why runs "cancelled" mid-review — FIXED 2026-06-05 (-086 working tree):**
+  the old "long runs keep dropping" symptom was **nodemon**. `backend:dev`
+  watched the repo root; every generated pptxgenjs `.js` the interpreter saves
+  as an artifact lands in `uploads/<userId>/` (a `.js` in a watched dir), so
+  nodemon restarted the backend mid-turn, killing the run right after the deck
+  was delivered, before `review_slides`. Fix: added `uploads/`, `images/`,
+  `logs/` to `nodemonConfig.ignore` in `-086/package.json`. **Requires a full
+  nodemon restart** (the parent caches its config at startup; an in-place edit
+  reloads the app but not the ignore list). Verified: PID stable, run survives,
+  `review_slides` fires + re-render loop runs.
+- **`review_slides` couldn't read the slides — FIXED 2026-06-05 (-086):** stored
+  image `file.filepath` is a web URL with a `?v=<ts>` cache-buster
+  (`/images/<userId>/<uuid>.png?v=…`); `reviewImages.js` fed it straight to the
+  local `getDownloadStream`, which `fs`-opened the literal `…png?v=…` → ENOENT,
+  so review always returned "none of the named slides resolved" and the model
+  looped re-rendering. Fix: `storagePath()` helper strips `?…`/`#…` before the
+  read. Verified end-to-end — real gpt-4o per-slide critique returned.
+- **Driver caveat:** these QA runs exceed undici's 300s default `headersTimeout`,
+  so `lc-agent.mjs send` aborts (`UND_ERR_HEADERS_TIMEOUT`) while the server
+  finishes fine. Bump the driver's fetch (`headersTimeout: 0`) or observe via the
+  UI (SSE). The review fires regardless — this only blocks the driver from
+  printing the transcript.
+- **Still open:** whether the model reliably *acts* on the review is prompt-driven,
+  not enforced (hard-gate options in the decision doc). `primeSkillFiles` 404 on
+  skill "pptx" — reference files (`editing.md`, `pptxgenjs.md`) not uploading.
+- **Not mine, pre-existing in the -086 working tree:** `client/.../ChatView.tsx`
+  and `api/server/controllers/agents/responses.js` show as modified — untouched
+  by this work. Nothing committed (awaiting Lukáš's call on what to commit).
+
+### Topology
+
+```
+LibreChat backend  (:3080)           — LibreChat-086, branch release_8.6
+        │  /exec, /upload, /download with x-api-key
+        ▼
+Daytona adapter   (:8765)            — Librechat-Daytona-Interpreter, branch feat/skills-image
+        │  spawns sandboxes from a custom image on
+        ▼
+Daytona Cloud     app.daytona.io     — shared org, 30 GiB total disk cap
+```
+
+### Sandbox image — `kuntik/librechat-skills:0.3` (Docker Hub, public)
+
+Built from `Librechat-Daytona-Interpreter/sandbox-image/Dockerfile`. Carries:
+
+- `python:3.12-slim` base
+- LibreOffice (calc/writer/impress) + pandoc + poppler + qpdf + tesseract
+- Node.js 20 + `pptxgenjs`, `docx` npm globals (NODE_PATH=/usr/lib/node_modules so
+  globals resolve from any script location)
+- pip: `openpyxl`, `python-docx`, `python-pptx`, `pandas`, `matplotlib`, `pillow`,
+  `tabulate`, `pypdf`, `pdfplumber`, `reportlab`, `pytesseract`, `pdf2image`,
+  `markitdown[pptx]`
+- `https://github.com/anthropics/skills` cloned into `/opt/anthropic-skills/`
+  (each skill's `scripts/` dir on `PYTHONPATH`)
+- **(0.3)** `sanitize_xlsx.py` at `/opt/skill-tools/` (on `PATH` as `sanitize_xlsx`
+  and on `PYTHONPATH`) — strips openpyxl's `x14` conditional-formatting extension
+  that makes Excel demand "Repair" on data-bar workbooks. See gotcha #7.
+
+To rebuild after a Dockerfile change:
+
+```bash
+cd /Users/kuntik/work/Librechat-Daytona-Interpreter
+docker build --platform linux/amd64 -t kuntik/librechat-skills:<next-tag> sandbox-image/
+docker push kuntik/librechat-skills:<next-tag>
+# Then bump DAYTONA_SANDBOX_IMAGE in adapter .env and restart uvicorn.
+# Never reuse a tag (Daytona caches by tag on workers).
+```
+
+### Adapter wiring
+
+Adapter `.env` in `Librechat-Daytona-Interpreter`:
+
+```dotenv
+DAYTONA_SANDBOX_IMAGE=kuntik/librechat-skills:0.3
+DAYTONA_SANDBOX_DISK=3                # MUST be ≥3 (image is ~1.5 GB)
+SESSION_TTL_SECONDS=300               # idle sandbox reap after 5 min
+```
+
+When `DAYTONA_SANDBOX_IMAGE` is set, the adapter skips its per-session pip-install
+priming (everything is baked in).
+
+### Skills (LibreChat 0.8.6 native, DB-backed)
+
+0.8.6 ships first-class Skills: schema in `packages/data-schemas/src/schema/skill.ts`,
+catalog injection in `packages/api/src/agents/skills.ts`, route in
+`api/server/routes/skills.js`. The model gets a `skill` tool to load any cataloged
+skill's body mid-turn.
+
+Four office skills are seeded into the local Mongo (one-off): `xlsx`, `docx`,
+`pptx`, `pdf`. All have `alwaysApply=false` so the model auto-discovers via
+description match. To re-seed (e.g. after wiping Mongo), the script is at
+`/tmp/seed-skills.sh`. Frontmatter MUST be `{}` — Anthropic's SKILL.md files
+include a `license` key that the validator rejects in strict mode.
+
+For an agent to use them: open the agent builder, ensure the four skills are
+enabled in the Skills section. If a user types `$` in the chat input, the
+popover lists the available skills (manual prime).
+
+### Common gotchas (code-interpreter-specific)
+
+1. **Daytona disk quota.** Org cap is 30 GiB; each sandbox claims `DAYTONA_SANDBOX_DISK`
+   GiB. With disk=3, ~10 concurrent max. STOPPED sandboxes still count against
+   quota. Cleanup snippet (uses adapter venv):
+   ```bash
+   cd /Users/kuntik/work/Librechat-Daytona-Interpreter && .venv/bin/python -c "
+   from dotenv import dotenv_values; import os
+   c=dotenv_values('.env'); os.environ['DAYTONA_API_KEY']=c['DAYTONA_API_KEY']
+   if c.get('DAYTONA_API_URL'): os.environ['DAYTONA_API_URL']=c['DAYTONA_API_URL']
+   from daytona_sdk import Daytona
+   for sb in list(Daytona().list()): sb.delete()
+   "
+   ```
+2. **Image tags are pinned.** Daytona caches by tag on each worker. To roll out
+   a Dockerfile change you must bump the tag (`:0.3` → `:0.4`); reusing a tag
+   does nothing on already-warmed workers.
+3. **NODE_PATH for npm globals.** Without `NODE_PATH=/usr/lib/node_modules`, a
+   script in `/mnt/data` doing `require('pptxgenjs')` fails with MODULE_NOT_FOUND
+   even though the package is installed globally. Already baked into `:0.3`.
+4. **Corporate Wi-Fi.** Docker Hub pushes and Daytona API calls can drop mid-stream
+   on the Mattoni network. Switch to hotspot and retry.
+5. **0.8.6 expects JWT eventually.** `LibreChat-086/packages/api/src/auth/codeapi.ts`
+   carries a patch that re-enables `x-api-key` for the adapter's contract.
+   When OSS Code Interpreter ships with JWT mode mandatory, drop this patch and
+   teach the adapter to verify the EdDSA/RS256 tokens.
+6. **Skill body validator rejects `license` key.** Anthropic SKILL.md frontmatter
+   has `license: Proprietary…` which is not in `ALLOWED_FRONTMATTER_KEYS`. Pass
+   `frontmatter: {}` when POSTing to `/api/skills`.
+7. **openpyxl data bars make Excel demand "Repair".** openpyxl writes data-bar
+   (and some conditional) formatting twice — a legacy rule plus an `x14`
+   extension copy (URIs `{78C0D931…}` worksheet-level + `{B025F937…}` per-rule).
+   Excel cross-validates and pops "We found a problem with some content →
+   Repaired Records: Conditional formatting" on open. The file is otherwise
+   valid (opens after the prompt), but it reads as corrupt. `recalc.py` only
+   checks *formula* errors, so it passes a broken file as "0 errors". Fix baked
+   into `:0.3`: run `sanitize_xlsx <file>` (= `python /opt/skill-tools/sanitize_xlsx.py
+   <file>`) after recalc — it strips only the x14 CF extension and normalizes
+   degenerate `min/max` cfvo, leaving the legacy data bars (which render fine).
+   Idempotent. The DB-backed `xlsx` skill (Mongo `db.skills`) now mandates this
+   as workflow step `3b`. To retro-fix an already-delivered file on the host,
+   run the same script against `LibreChat-086/uploads/<userId>/<file_id>__*.xlsx`.
+8. **Uploaded files not reaching `/mnt/data` — FIXED 2026-06-05 (adapter
+   `feat/skills-image`).** A file attached to a code-interpreter chat uploaded
+   fine but every `/exec` ran in a *fresh empty* sandbox (`FileNotFound`,
+   `ls /mnt/data` = `total 0`). NOT the vision-attachment limitation at the top
+   of this section — three `storage_session_id` **contract mismatches** between
+   the Daytona adapter and LibreChat 0.8.6's codeapi client:
+   - **`/upload` response** must return `storage_session_id` (LibreChat
+     `crud.js` reads exactly that key; the adapter only sent `session_id`, so
+     the file's session was recorded as `undefined`). Fixed in
+     `app/models.py` (`UploadResponse`) + `app/main.py`.
+   - **`/exec` file refs** carry the session under `storage_session_id`, *not*
+     `session_id` — the exec body has no top-level `session_id` at all
+     (`BashExecutor.cjs` puts the binding inside `postData.files`). The adapter's
+     `_extract_session_id_from_files` now reads `storage_session_id` first
+     (legacy `session_id`/`sessionId` as fallback).
+   - **session reuse across languages.** Uploads create a `python` session; the
+     agent execs via the bash bridge (`lang=bash`). `create_sandbox` coerces
+     bash→python (one shared sandbox), so the session-language guard now
+     normalizes bash↔python instead of 409-ing. `app/session_service.py`.
+   Verified end-to-end against Daytona: `/upload` + `/exec` reuse one sandbox
+   and the file is present (openpyxl read all sheets). **Latent:** `getSessionInfo`
+   does `GET /sessions/<sid>/objects/<fid>` which the adapter doesn't implement
+   → 404 → LibreChat re-uploads every turn (works, but wastes a sandbox/turn).
+
+### Verifying a skill actually fired
+
+A skill-driven flow shows multiple `run_code` calls sharing one `sandbox_id` in
+`/tmp/daytona-interpreter.log`. A single call = the model wrote one freestyle
+script and ignored the skill. Quick checks:
+
+```bash
+# Did anyone read a SKILL.md?
+grep -iE "anthropic-skills/skills/.*SKILL.md" /tmp/daytona-interpreter.log
+
+# How many run_code calls per sandbox?
+awk '/run_code/ {match($0,/sandbox_id=[a-z0-9-]+/); print substr($0,RSTART,RLENGTH)}' \
+  /tmp/daytona-interpreter.log | sort | uniq -c | sort -rn
+
+# Which image is being used?
+grep -E "fast-path image=" /tmp/daytona-interpreter.log | tail -3
+```
+
+In the LibreChat chat UI itself, the agent's tool-call list shows a `skill`
+invocation when the catalog path fires.
