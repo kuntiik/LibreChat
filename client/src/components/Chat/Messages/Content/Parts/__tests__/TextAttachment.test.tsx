@@ -259,3 +259,61 @@ describe('AttachmentGroup', () => {
     );
   });
 });
+
+const imageAttachment = (overrides: Partial<TAttachment> = {}): TAttachment =>
+  ({
+    file_id: 'img-1',
+    filename: 'slide-1.png',
+    filepath: '/files/slide-1.png',
+    type: 'image/png',
+    width: 800,
+    height: 600,
+    ...overrides,
+  }) as TAttachment;
+
+describe('AttachmentGroup collapseImages', () => {
+  const images = [
+    imageAttachment({ file_id: 'img-1', filename: 'slide-1.png' }),
+    imageAttachment({ file_id: 'img-2', filename: 'slide-2.png' }),
+  ];
+
+  it('renders images inline (no disclosure) by default', () => {
+    render(<AttachmentGroup attachments={images} />);
+    expect(screen.queryByRole('button', { name: 'com_ui_show_n_images' })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('image')).toHaveLength(2);
+  });
+
+  it('collapses images under a "show N images" disclosure when collapseImages is set', () => {
+    render(<AttachmentGroup attachments={images} collapseImages />);
+    const toggle = screen.getByRole('button', { name: 'com_ui_show_n_images' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // Images are present in the DOM but inside the collapsed (aria-hidden) panel.
+    expect(screen.getAllByTestId('image')).toHaveLength(2);
+    const panel = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
+    expect(panel?.firstElementChild).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('expands the image disclosure on click', () => {
+    render(<AttachmentGroup attachments={images} collapseImages />);
+    const toggle = screen.getByRole('button', { name: 'com_ui_show_n_images' });
+    act(() => {
+      fireEvent.click(toggle);
+    });
+    const expanded = screen.getByRole('button', { name: 'com_ui_hide_n_images' });
+    expect(expanded).toHaveAttribute('aria-expanded', 'true');
+    const panel = document.getElementById(expanded.getAttribute('aria-controls') ?? '');
+    expect(panel?.firstElementChild).toHaveAttribute('aria-hidden', 'false');
+  });
+
+  it('keeps non-image files visible while images collapse', () => {
+    const zip = textAttachment({
+      file_id: 'zip',
+      filename: 'deck.zip',
+      type: 'application/zip',
+      text: undefined as unknown as string,
+    });
+    render(<AttachmentGroup attachments={[...images, zip]} collapseImages />);
+    expect(screen.getByRole('button', { name: 'com_ui_show_n_images' })).toBeInTheDocument();
+    expect(screen.getByTestId('file-container')).toHaveTextContent('deck.zip');
+  });
+});

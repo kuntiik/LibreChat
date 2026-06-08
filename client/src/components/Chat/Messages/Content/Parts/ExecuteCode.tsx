@@ -132,7 +132,7 @@ export default function ExecuteCode({
         </div>
       </div>
       {!hideAttachments && attachments && attachments.length > 0 && (
-        <AttachmentGroup attachments={attachments} />
+        <AttachmentGroup attachments={attachments} collapseImages={true} />
       )}
     </>
   );

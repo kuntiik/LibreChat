@@ -1,5 +1,12 @@
 import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, AlertCircle, Download, ChevronDown, Files as FilesIcon } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  Download,
+  ChevronDown,
+  Files as FilesIcon,
+  Images as ImagesIcon,
+} from 'lucide-react';
 import { Tools } from 'librechat-data-provider';
 import type { TAttachment, TFile, TAttachmentMetadata } from 'librechat-data-provider';
 import type { ToolArtifactType } from '~/utils/artifacts';
@@ -458,6 +465,66 @@ const ImageAttachment = memo(({ attachment }: { attachment: TAttachment }) => {
   );
 });
 
+/**
+ * Collapsed-by-default disclosure for a set of images. Used for
+ * code-interpreter output (e.g. the screenshots a vision-readback loop
+ * produces while it inspects a presentation) so they don't flood the
+ * main chat — the user expands to inspect, mirroring the code-window
+ * collapse pattern. Reuses `useExpandCollapse` like FileAttachmentGroup.
+ */
+const ImageAttachmentGroup = memo(({ attachments }: { attachments: TAttachment[] }) => {
+  const localize = useLocalize();
+  const panelId = useId();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { style: expandStyle, ref: expandRef } = useExpandCollapse(isExpanded);
+  const count = attachments.length;
+  const buttonLabel = isExpanded
+    ? localize('com_ui_hide_n_images', { 0: String(count) })
+    : localize('com_ui_show_n_images', { 0: String(count) });
+
+  return (
+    <div className="my-2 w-full max-w-full">
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        aria-controls={panelId}
+        aria-label={buttonLabel}
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className={cn(
+          'inline-flex w-full max-w-full items-center gap-2 rounded-lg py-1 pr-2 text-sm',
+          'text-text-secondary transition-colors hover:text-text-primary',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-heavy',
+        )}
+      >
+        <ImagesIcon className="size-4 shrink-0" aria-hidden="true" />
+        <span className="shrink-0 font-medium">
+          {localize('com_ui_n_images', { 0: String(count) })}
+        </span>
+        <ChevronDown
+          className={cn(
+            'ml-auto size-4 shrink-0 transition-transform duration-200 ease-out',
+            isExpanded && 'rotate-180',
+          )}
+          aria-hidden="true"
+        />
+      </button>
+      <div id={panelId} style={expandStyle}>
+        <div className="overflow-hidden" ref={expandRef} aria-hidden={!isExpanded}>
+          <div className="flex flex-wrap items-center pt-2">
+            {attachments.map((attachment, index) => (
+              <ImageAttachment
+                attachment={attachment}
+                key={renderAttachmentKey('image', attachment, index)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+ImageAttachmentGroup.displayName = 'ImageAttachmentGroup';
+
 interface PanelArtifactProps {
   attachment: TAttachment;
   /** Pre-classified type from the routing decision tree, threaded down so
@@ -528,7 +595,13 @@ export default function Attachment({ attachment }: { attachment?: TAttachment })
   return <FileAttachment attachment={attachment} />;
 }
 
-export function AttachmentGroup({ attachments }: { attachments?: TAttachment[] }) {
+export function AttachmentGroup({
+  attachments,
+  collapseImages = false,
+}: {
+  attachments?: TAttachment[];
+  collapseImages?: boolean;
+}) {
   if (!attachments || attachments.length === 0) {
     return null;
   }
@@ -647,16 +720,19 @@ export function AttachmentGroup({ attachments }: { attachments?: TAttachment[] }
           ))}
         </div>
       )}
-      {imageAttachments.length > 0 && (
-        <div className="mb-2 flex flex-wrap items-center">
-          {imageAttachments.map((attachment, index) => (
-            <ImageAttachment
-              attachment={attachment}
-              key={renderAttachmentKey('image', attachment, index)}
-            />
-          ))}
-        </div>
-      )}
+      {imageAttachments.length > 0 &&
+        (collapseImages ? (
+          <ImageAttachmentGroup attachments={imageAttachments} />
+        ) : (
+          <div className="mb-2 flex flex-wrap items-center">
+            {imageAttachments.map((attachment, index) => (
+              <ImageAttachment
+                attachment={attachment}
+                key={renderAttachmentKey('image', attachment, index)}
+              />
+            ))}
+          </div>
+        ))}
     </>
   );
 }
