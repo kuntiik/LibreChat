@@ -175,18 +175,25 @@ Fix all formatting lint errors (trailing spaces, tabs, newlines, indentation) us
 
 ## Local code-interpreter stack (Lukáš's setup)
 
-**Important:** active code-interpreter work does NOT happen in this repo. This
-clone is the Mattoni fork — kept untouched. The live stack lives in two sibling
-clones:
+**Important:** active code-interpreter work now happens **in this repo**
+(`LibreChat`, branch `new_dev`). As of 2026-06-08 the live backend (`:3080`)
+runs from here, not from `LibreChat-086` — `-086` is the superseded
+release_8.6 testbed, kept only for reference. `new_dev` carries the full stack
+(agent stack, QA stack/`review_slides`, codeapi patch) plus the collapse-images
+feature, and is ahead of `-086`.
 
 ```
 /Users/kuntik/work/
-├── LibreChat                          ← this repo (Mattoni fork, do not disturb)
-├── LibreChat-086                      ← release_8.6 from kuntiik/LibreChat (active)
-└── Librechat-Daytona-Interpreter      ← Janecv0 fork (active, on `feat/skills-image`)
+├── LibreChat                          ← this repo, branch new_dev (ACTIVE — backend runs here)
+├── LibreChat-086                      ← release_8.6, superseded (reference only)
+└── Librechat-Daytona-Interpreter      ← Janecv0 fork (active; adapter + sandbox image, new_main=new_develop=:0.7)
 ```
 
-**Read first:** `/Users/kuntik/work/LibreChat-086/CODE_INTERPRETER_HANDOFF.md`
+Start the backend from here: `npm run backend` (production, no nodemon). The
+agent driver key is in `.agent-api-key`; adapter on `:8765`, Mongo
+`mongodb://127.0.0.1:27017/LibreChat` (shared with `-086`).
+
+**Read first:** `/Users/kuntik/work/LibreChat/CODE_INTERPRETER_HANDOFF.md`
 for the full picture (env wiring, two upstream patches, quick-start commands).
 
 **Driving the agent over API + vision QA:**
