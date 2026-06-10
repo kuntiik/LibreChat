@@ -3,6 +3,7 @@ import type { CodeEnvFile, CodeSessionContext, ToolSessionMap } from '@librechat
 import {
   buildInitialToolSessions,
   seedCodeFilesIntoSessions,
+  seedConversationExecSession,
   type CodeFilesAgent,
 } from './codeFilesSession';
 
@@ -326,5 +327,41 @@ describe('buildInitialToolSessions', () => {
     const entry = result!.get(Constants.EXECUTE_CODE) as CodeSessionContext;
     expect(entry.files).toHaveLength(2);
     expect(entry.files!.map((f) => f.name).sort()).toEqual(['shared.csv', 'top.csv']);
+  });
+});
+
+describe('seedConversationExecSession', () => {
+  const CID = 'conv-abc-123';
+
+  it('seeds a conversation-stable session_id when no entry exists', () => {
+    const result = seedConversationExecSession(undefined, CID);
+    const entry = result!.get(Constants.EXECUTE_CODE) as CodeSessionContext;
+    expect(entry.session_id).toBe(CID);
+    expect(entry.files).toEqual([]);
+  });
+
+  it('returns input unchanged when conversationId is missing', () => {
+    const existing: ToolSessionMap = new Map();
+    expect(seedConversationExecSession(existing, undefined)).toBe(existing);
+    expect(seedConversationExecSession(undefined, null)).toBeUndefined();
+  });
+
+  it('overrides the file/skill representative with the conversation id but preserves bucket file refs', () => {
+    /**
+     * Storage/compute split: the representative `session_id` is the COMPUTE
+     * key (the conversation → one sandbox), independent of the per-file
+     * `storage_session_id` BUCKET keys. The conversation id always wins as the
+     * representative; the bucket refs on `files` are kept verbatim so the
+     * backend can copy them into the conversation's sandbox.
+     */
+    const seeded = seedCodeFilesIntoSessions(
+      [file('f1', 'storage-sess-xyz', 'data.csv')],
+      undefined,
+    )!;
+    const result = seedConversationExecSession(seeded, CID);
+    const entry = result!.get(Constants.EXECUTE_CODE) as CodeSessionContext;
+    expect(entry.session_id).toBe(CID);
+    expect(entry.files).toHaveLength(1);
+    expect(entry.files![0].storage_session_id).toBe('storage-sess-xyz');
   });
 });

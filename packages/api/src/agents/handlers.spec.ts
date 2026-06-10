@@ -1751,5 +1751,23 @@ describe('createToolExecuteHandler', () => {
       expect(result.errorMessage).toContain('Visual review could not run');
       expect(result.errorMessage).toContain('resolved to a stored image file');
     });
+
+    it('treats a SLIDES_NOT_RENDERED failure as a soft skip (success, no thrash) rather than a hard error', async () => {
+      const reviewImages = jest.fn(async () => {
+        const error = new Error('none of the named slides resolved to a stored image file') as Error & {
+          code?: string;
+        };
+        error.code = 'SLIDES_NOT_RENDERED';
+        throw error;
+      });
+      const handler = makeReviewHandler({ conversationId: 'c', reviewImages });
+      const [result] = await invokeHandler(handler, [
+        reviewCall({ image_paths: ['/mnt/data/slide1.png'], brief: 'a deck' }),
+      ]);
+      expect(result.status).toBe('success');
+      expect(result.errorMessage).toBeUndefined();
+      expect(result.content).toContain('review was skipped');
+      expect(result.content).toContain('do NOT loop');
+    });
   });
 });

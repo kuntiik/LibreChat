@@ -173,9 +173,11 @@ async function resolveImages(imagePaths, conversationId, req) {
   }
 
   if (images.length === 0) {
-    throw new Error(
+    const error = new Error(
       `none of the named slides resolved to a stored image file (looked up by name in this conversation): ${missing.join(', ')}`,
     );
+    error.code = 'SLIDES_NOT_RENDERED';
+    throw error;
   }
   return { images, missing };
 }

@@ -1420,7 +1420,7 @@ async function handleReviewSlidesCall(
       status: 'error',
       content: '',
       errorMessage:
-        '`image_paths` is required: pass the rendered slide image paths (e.g. ["/mnt/data/slide-01.png", ...]). Render the deck to images first.',
+        '`image_paths` is required: pass the rendered slide image paths (e.g. ["/mnt/data/slide-1.png", ...]). Render the deck to images first.',
     };
   }
 
@@ -1451,7 +1451,17 @@ async function handleReviewSlidesCall(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const slidesNotRendered =
+      error instanceof Error && (error as Error & { code?: string }).code === 'SLIDES_NOT_RENDERED';
     logger.warn(`[handleReviewSlidesCall] review failed: ${message}`);
+    if (slidesNotRendered) {
+      return {
+        toolCallId: tc.id,
+        status: 'success',
+        content:
+          'Visual review was skipped — no rendered slide images were found for this deck. Rendering the slides for fresh-eyes QA is a required step: run `qa_deck.sh` and pass the exact PNG paths it prints (e.g. /mnt/data/slide-1.png) to review_slides, then retry this tool ONCE with the corrected paths. If review is skipped again, deliver the deck anyway — do NOT loop re-rendering — but you MUST state in your final reply that the fresh-eyes visual review did not run.',
+      };
+    }
     return {
       toolCallId: tc.id,
       status: 'error',

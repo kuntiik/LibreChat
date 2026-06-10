@@ -14,6 +14,7 @@ const {
   createRun,
   buildToolSet,
   loadSkillStates,
+  seedConversationExecSession,
   resolveAgentScopedSkillIds,
   createSafeUser,
   initializeAgent,
@@ -542,6 +543,15 @@ const createResponse = async (req, res) => {
     const runAgents = [primaryConfig, ...handoffAgentConfigs.values()];
     const mergedMCPAuthMap = discoveredMCPAuthMap ?? primaryConfig.userMCPAuthMap;
 
+    /**
+     * Seed a conversation-stable `EXECUTE_CODE` session so every turn of this
+     * conversation routes to ONE code-interpreter sandbox (otherwise each
+     * file-less exec mints a fresh sandbox and `/mnt/data` is lost between
+     * turns). This path primes no code-file/skill sessions, so there is no
+     * `storage_session_id` seed to preserve. Mirrors the AgentClient chat path.
+     */
+    const initialSessions = seedConversationExecSession(undefined, conversationId);
+
     // Determine if streaming is enabled (check both request and agent config)
     const streamingDisabled = !!primaryConfig.model_parameters?.disableStreaming;
     const actuallyStreaming = isStreaming && !streamingDisabled;
@@ -715,6 +725,7 @@ const createResponse = async (req, res) => {
         messages: formattedMessages,
         indexTokenCountMap,
         initialSummary,
+        initialSessions,
         runId: responseId,
         summarizationConfig,
         appConfig,
@@ -901,6 +912,7 @@ const createResponse = async (req, res) => {
         messages: formattedMessages,
         indexTokenCountMap,
         initialSummary,
+        initialSessions,
         runId: responseId,
         summarizationConfig,
         appConfig,

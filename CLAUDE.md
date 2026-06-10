@@ -256,6 +256,38 @@ generation code) that critiques the rendered slides, instead of self-QA via
   and `api/server/controllers/agents/responses.js` show as modified — untouched
   by this work. Nothing committed (awaiting Lukáš's call on what to commit).
 
+**Review pipeline revived on this stack — 2026-06-10 (image `:1.2`, verified E2E):**
+the storage/compute-split adapter only reports files at the `/workspace` ROOT
+(`list_files` is non-recursive), so the PNGs `qa_deck.sh` wrote to
+`/mnt/data/preview/` were never persisted and `review_slides` always skipped —
+every deck shipped unreviewed. Fixes, all live:
+
+- `qa_deck.sh` now renders `slide-N.png` (and the PDF) into `/mnt/data` itself;
+  `render_deck.sh` clears stale `slide-*.png` before re-rendering. Skill body
+  (Mongo `db.skills` "pptx") updated to the root paths.
+- `deck_helpers.js`: EMU normalization in the linter (`emuToIn`) — pptxgenjs
+  stores TABLE geometry in EMU, so any `s.addTable` previously failed the
+  bounds gate forever (repro: in-bounds table reported as `x=548640`); native
+  tables now pass and ship editable. New `D.chart(deck, s, "bar"|"line", data,
+  opts)` helper (native editable charts). `deck.addSlide`/`deck.writeFile`/
+  `deck.addTable`-style misuses now throw with the correct call (models burned
+  ~4 turns guessing the API).
+- Skill body: exact-signature block, emoji BAN (no emoji fonts in the sandbox →
+  tofu in renders and in the reviewer's screenshots), review-skip disclosure
+  mandate. `handleReviewSlidesCall` skip message now also instructs one retry +
+  forces the model to disclose an unrun review in its final reply (packages/api
+  rebuilt).
+- Verified 2026-06-10: full agent run → `[reviewImages] openai/gpt-4o reviewing
+  6 image(s)` → fix cycle ran → deck delivered with native chart + native table,
+  no emoji, and an honest residual-issue disclosure. Slide PNGs + PDF persist as
+  conversation files.
+- **Daytona tag gotcha confirmed the hard way:** a worker that ever failed to
+  resolve a tag keeps failing it — after a bad push attempt of `:1.1` (poisoned
+  local docker cache: `curl|bash` nodesource layer silently no-op'd on corporate
+  Wi-Fi → npm missing), the re-pushed `:1.1` still read "not found" on Daytona.
+  Bumping to `:1.2` fixed it. Never reuse a tag, and never pipe `docker build/push`
+  through `tail` (it masks the exit code).
+
 ### Topology
 
 ```
@@ -268,7 +300,7 @@ Daytona adapter   (:8765)            — Librechat-Daytona-Interpreter, branch f
 Daytona Cloud     app.daytona.io     — shared org, 30 GiB total disk cap
 ```
 
-### Sandbox image — `kuntik/librechat-skills:0.3` (Docker Hub, public)
+### Sandbox image — `kuntik/librechat-skills:1.2` (Docker Hub, public; `:0.3` notes below still apply)
 
 Built from `Librechat-Daytona-Interpreter/sandbox-image/Dockerfile`. Carries:
 
@@ -300,13 +332,39 @@ docker push kuntik/librechat-skills:<next-tag>
 Adapter `.env` in `Librechat-Daytona-Interpreter`:
 
 ```dotenv
-DAYTONA_SANDBOX_IMAGE=kuntik/librechat-skills:0.3
+DAYTONA_SANDBOX_IMAGE=kuntik/librechat-skills:1.2
 DAYTONA_SANDBOX_DISK=3                # MUST be ≥3 (image is ~1.5 GB)
-SESSION_TTL_SECONDS=300               # idle sandbox reap after 5 min
+SESSION_TTL_SECONDS=1800              # idle sandbox reap after 30 min (live .env)
+BUCKET_ROOT=./buckets                 # persistent identity-keyed file storage
 ```
 
 When `DAYTONA_SANDBOX_IMAGE` is set, the adapter skips its per-session pip-install
 priming (everything is baked in).
+
+### Storage/compute split (adapter `new_develop`, built 2026-06-09)
+
+The adapter separates **storage** from **compute** so multi-file agents (e.g. a
+promo deck with a template + a master xlsx) reliably see all their files, with
+per-session + per-user isolation. Full plan:
+`Librechat-Daytona-Interpreter/PLAN_storage_compute_split.md`.
+
+- **Bucket = storage.** `/upload` requests that carry a `kind`+`id` identity
+  (LibreChat's `appendCodeEnvFileIdentity`) write to a persistent host dir
+  `BUCKET_ROOT/<kind:id[:v:N]>/<file>` — **no sandbox is created**. The bucket
+  key is returned as `storage_session_id` (stable, so `codeEnvRef` stops going
+  stale). `app/buckets.py` (`BucketStore`, `bucket_key`). Legacy uploads with no
+  identity still use the old sandbox path.
+- **Sandbox = compute, keyed by `conversationId`.** LibreChat's
+  `seedConversationExecSession` now *always* sets the representative
+  `EXECUTE_CODE` `session_id` to the conversation id (overriding any
+  file/skill-derived id), keeping per-file bucket keys on `files`. One sandbox
+  per conversation → isolated per session AND per user.
+- **Copy-in on `/exec`.** Before running, the adapter copies each referenced
+  bucket file into the sandbox `/workspace` (idempotent — skips files already
+  present by basename; a reaped+recreated sandbox re-hydrates from the surviving
+  bucket). `read_file` flows through `/exec` so it gets copy-in for free.
+- **Not yet done (optional follow-ups):** Phase 5 freshness/`getSessionInfo`
+  endpoint to stop the idempotent per-turn re-upload churn; bucket GC/retention.
 
 ### Skills (LibreChat 0.8.6 native, DB-backed)
 

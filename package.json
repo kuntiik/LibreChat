@@ -97,7 +97,8 @@
     "migrate:prompt-permissions:batch": "node config/migrate-prompt-permissions.js --batch-size=50",
     "migrate:orphaned-agent-files:dry-run": "node config/migrate-orphaned-agent-files.js --dry-run",
     "migrate:orphaned-agent-files": "node config/migrate-orphaned-agent-files.js",
-    "migrate:orphaned-agent-files:batch": "node config/migrate-orphaned-agent-files.js --batch-size=50"
+    "migrate:orphaned-agent-files:batch": "node config/migrate-orphaned-agent-files.js --batch-size=50",
+    "postinstall": "patch-package"
   },
   "repository": {
     "type": "git",
@@ -134,6 +135,7 @@
     "husky": "^9.1.7",
     "jest": "^30.2.0",
     "lint-staged": "^15.4.3",
+    "patch-package": "^8.0.1",
     "prettier": "^3.5.0",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "turbo": "^2.9.14",

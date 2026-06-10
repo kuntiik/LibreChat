@@ -36,6 +36,7 @@ const {
   buildAgentScopedContext,
   buildSkillPrimeContentParts,
   buildInitialToolSessions,
+  seedConversationExecSession,
 } = require('@librechat/api');
 const {
   Callback,
@@ -871,10 +872,13 @@ class AgentClient extends BaseClient {
        * run-wide semantics live in `buildInitialToolSessions`; see that
        * helper's doc for why this is intentionally NOT per-agent.
        */
-      const initialSessions = buildInitialToolSessions({
-        skillSessions: skillPrimeResult?.initialSessions,
-        agents: [this.options.agent, ...(this.agentConfigs ? this.agentConfigs.values() : [])],
-      });
+      const initialSessions = seedConversationExecSession(
+        buildInitialToolSessions({
+          skillSessions: skillPrimeResult?.initialSessions,
+          agents: [this.options.agent, ...(this.agentConfigs ? this.agentConfigs.values() : [])],
+        }),
+        this.conversationId,
+      );
 
       let {
         messages: initialMessages,

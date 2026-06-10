@@ -1,0 +1,56 @@
+diff --git a/node_modules/@librechat/agents/dist/cjs/tools/BashExecutor.cjs b/node_modules/@librechat/agents/dist/cjs/tools/BashExecutor.cjs
+index 6b1961a..c6fdb18 100644
+--- a/node_modules/@librechat/agents/dist/cjs/tools/BashExecutor.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/tools/BashExecutor.cjs
+@@ -116,6 +116,9 @@ function createBashExecutionTool(params = {}) {
+             // eslint-disable-next-line no-console
+             console.debug(`[BashExecutor] No injected files for session_id=${session_id} — exec will run without input files`);
+         }
++        if (session_id != null && session_id.length > 0 && postData.session_id == null) {
++            postData.session_id = session_id;
++        }
+         try {
+             const resolvedAuthHeaders = await CodeExecutor.resolveCodeApiAuthHeaders(authHeaders);
+             const fetchOptions = {
+diff --git a/node_modules/@librechat/agents/dist/cjs/tools/CodeExecutor.cjs b/node_modules/@librechat/agents/dist/cjs/tools/CodeExecutor.cjs
+index ffecc15..4df84b2 100644
+--- a/node_modules/@librechat/agents/dist/cjs/tools/CodeExecutor.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/tools/CodeExecutor.cjs
+@@ -147,6 +147,9 @@ function createCodeExecutionTool(params = {}) {
+             // eslint-disable-next-line no-console
+             console.debug(`[CodeExecutor] No injected files for session_id=${session_id} — exec will run without input files`);
+         }
++        if (session_id != null && session_id.length > 0 && postData.session_id == null) {
++            postData.session_id = session_id;
++        }
+         try {
+             const resolvedAuthHeaders = await resolveCodeApiAuthHeaders(authHeaders);
+             const fetchOptions = {
+diff --git a/node_modules/@librechat/agents/dist/esm/tools/BashExecutor.mjs b/node_modules/@librechat/agents/dist/esm/tools/BashExecutor.mjs
+index 3f5f1a5..8bd674e 100644
+--- a/node_modules/@librechat/agents/dist/esm/tools/BashExecutor.mjs
++++ b/node_modules/@librechat/agents/dist/esm/tools/BashExecutor.mjs
+@@ -114,6 +114,9 @@ function createBashExecutionTool(params = {}) {
+             // eslint-disable-next-line no-console
+             console.debug(`[BashExecutor] No injected files for session_id=${session_id} — exec will run without input files`);
+         }
++        if (session_id != null && session_id.length > 0 && postData.session_id == null) {
++            postData.session_id = session_id;
++        }
+         try {
+             const resolvedAuthHeaders = await resolveCodeApiAuthHeaders(authHeaders);
+             const fetchOptions = {
+diff --git a/node_modules/@librechat/agents/dist/esm/tools/CodeExecutor.mjs b/node_modules/@librechat/agents/dist/esm/tools/CodeExecutor.mjs
+index 7b954c8..ce73ed1 100644
+--- a/node_modules/@librechat/agents/dist/esm/tools/CodeExecutor.mjs
++++ b/node_modules/@librechat/agents/dist/esm/tools/CodeExecutor.mjs
+@@ -146,6 +146,9 @@ function createCodeExecutionTool(params = {}) {
+             // eslint-disable-next-line no-console
+             console.debug(`[CodeExecutor] No injected files for session_id=${session_id} — exec will run without input files`);
+         }
++        if (session_id != null && session_id.length > 0 && postData.session_id == null) {
++            postData.session_id = session_id;
++        }
+         try {
+             const resolvedAuthHeaders = await resolveCodeApiAuthHeaders(authHeaders);
+             const fetchOptions = {

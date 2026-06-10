@@ -93,6 +93,46 @@ export function seedCodeFilesIntoSessions(
 }
 
 /**
+ * Force the conversation id as the representative `EXECUTE_CODE` session id —
+ * the **compute key** in the storage/compute split.
+ *
+ * The Graph rebuilds its `ToolSessionMap` from this seed every run (turn), and
+ * `ToolNode` injects the representative `session_id` into the first
+ * `execute_code` call. The code backend uses that id to pick ONE sandbox per
+ * conversation (per-user, since conversations are user-scoped), so every turn
+ * routes to the same `/mnt/data`. The per-file `storage_session_id`s on
+ * `files` carry the storage **bucket** keys (from {@link seedCodeFilesIntoSessions}
+ * / `primeInvokedSkills`); the backend copies those bucket files into the
+ * conversation's sandbox on its first exec. Compute key (conversation) and
+ * storage keys (buckets) are now independent, so the representative is always
+ * the conversation id — overriding any file/skill-derived representative —
+ * while the bucket refs on `files` are preserved untouched.
+ *
+ * Without this seed a file-less run sends no `session_id` and the backend
+ * mints a fresh sandbox every turn, fragmenting a multi-turn build across cold
+ * sandboxes and losing `/mnt/data` between turns.
+ */
+export function seedConversationExecSession(
+  sessions: ToolSessionMap | undefined,
+  conversationId: string | undefined | null,
+): ToolSessionMap | undefined {
+  if (!conversationId) {
+    return sessions;
+  }
+
+  const map: ToolSessionMap = sessions ?? new Map();
+  const prior = map.get(Constants.EXECUTE_CODE) as CodeSessionContext | undefined;
+
+  map.set(Constants.EXECUTE_CODE, {
+    session_id: conversationId,
+    files: prior?.files ?? [],
+    lastUpdated: Date.now(),
+  } satisfies CodeSessionContext);
+
+  return map;
+}
+
+/**
  * Builds the run-wide initial `ToolSessionMap` for `Graph.sessions`,
  * combining skill-priming output with code-resource files primed across
  * every agent that may execute code in this run.
