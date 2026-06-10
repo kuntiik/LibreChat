@@ -58,7 +58,23 @@ For EACH slide, check for:
 - Leftover placeholder content (lorem ipsum, "click to add", XXXX)
 - Content that does not match the brief or the per-slide expectation
 
-Output format: one section per slide ("Slide N:"), a short bullet list of concrete issues with WHERE on the slide they are, and the severity (blocker / should-fix / minor). End each slide with "VERDICT: CLEAN" if it has no issues, otherwise list them. If the whole deck is clean, say so explicitly — but only if it truly is.`;
+For every issue, quote or name the visible object when possible. Prefer actionable descriptions like:
+- Slide 2: should-fix - heading "Why this matters..." overlaps the Render flow box near the center.
+- Slide 4: minor - roadmap table body text is readable but cramped in the third column.
+Avoid opaque references such as "text #21" or "shape #6" unless no visible label/text exists.
+
+Output format:
+SHIP_STATUS: ship | ship_with_notes | do_not_ship
+SUMMARY: one sentence explaining the status.
+
+Then one section per slide ("Slide N:") with a short bullet list of concrete issues, each including WHERE, visible text/object snippets, and severity (blocker / should-fix / minor). End each slide with "VERDICT: CLEAN" if it has no issues.
+
+Use SHIP_STATUS exactly:
+- ship: every slide is clean.
+- ship_with_notes: only minor issues remain.
+- do_not_ship: any blocker or should-fix issue remains.
+
+If the whole deck is clean, say so explicitly, but only if it truly is.`;
 
 function buildUserText(brief, expectations, count) {
   const lines = [

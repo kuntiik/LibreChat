@@ -204,6 +204,38 @@ export const REVIEW_SLIDES_TOOL_NAME = 'review_slides';
  *  request bounded and matches a sane slide-count-per-pass for QA. */
 const MAX_REVIEW_IMAGES = 20;
 
+type ReviewShipStatus = 'ship' | 'ship_with_notes' | 'do_not_ship' | 'unknown';
+
+function extractReviewShipStatus(review: string): ReviewShipStatus {
+  const match = review.match(/^\s*SHIP_STATUS:\s*(ship|ship_with_notes|do_not_ship)\b/im);
+  return match?.[1] === 'ship' ||
+    match?.[1] === 'ship_with_notes' ||
+    match?.[1] === 'do_not_ship'
+    ? match[1]
+    : 'unknown';
+}
+
+/** Tracks how many times each conversation has run review_slides, so a
+ *  non-`ship` result forces at least one fix-and-re-render cycle before the
+ *  model is allowed to deliver. Keyed by conversationId; cleared on a `ship`.
+ *  Without a conversationId we cannot count across calls, so the gate degrades
+ *  to a single forceful instruction (treated as the first pass). */
+const reviewPassCounts = new Map<string, number>();
+
+function reviewStatusGuidance(status: ReviewShipStatus, passNumber: number): string {
+  if (status === 'ship') {
+    return 'Visual QA status: ship. You may deliver after ensuring the final artifact bundle is complete.';
+  }
+  const firstPass = passNumber <= 1;
+  if (firstPass) {
+    return 'Visual QA status: NOT clean. Do NOT deliver yet. Fix every listed issue, re-render the affected slides, and call review_slides again. Delivery is not allowed until you have completed at least one fix-and-re-render cycle — even for minor issues.';
+  }
+  if (status === 'do_not_ship') {
+    return 'Visual QA status: do not ship. Blocker/should-fix issues remain after a fix cycle. Fix them, re-render, and call review_slides again — do not deliver with a blocker outstanding.';
+  }
+  return 'Visual QA status: degraded. You have already completed a fix-and-re-render cycle and only minor issues remain. Fix any that are quick; if minor issues persist you may deliver now, but the final reply MUST say "Visual QA: Degraded" and list the residual slide issues.';
+}
+
 type ToolInputSchemaKind = {
   object: boolean;
   string: boolean;
@@ -1442,12 +1474,22 @@ async function handleReviewSlidesCall(
       ...(conversationId ? { conversationId } : {}),
       ...(req ? { req } : {}),
     });
+    const shipStatus = extractReviewShipStatus(review);
+    const passKey = conversationId ?? '';
+    const passNumber = passKey ? (reviewPassCounts.get(passKey) ?? 0) + 1 : 1;
+    if (passKey) {
+      if (shipStatus === 'ship') {
+        reviewPassCounts.delete(passKey);
+      } else {
+        reviewPassCounts.set(passKey, passNumber);
+      }
+    }
     const header =
-      'Fresh-eyes visual review (a reviewer that did not see your code). Treat every issue as real and fix it, then re-render and call review_slides again until a pass is clean.';
+      'Fresh-eyes visual review (a reviewer that did not see your code). Treat every issue as real. The first time a review is not "ship", you MUST fix the issues, re-render, and call review_slides again before delivering.';
     return {
       toolCallId: tc.id,
       status: 'success',
-      content: `${header}\n\n${review}`,
+      content: `${header}\n${reviewStatusGuidance(shipStatus, passNumber)}\n\n${review}`,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

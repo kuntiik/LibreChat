@@ -1678,8 +1678,10 @@ describe('createToolExecuteHandler', () => {
     }
 
     it('delegates to reviewImages with the paths + brief + conversationId and returns its issue list', async () => {
-      const reviewImages = jest.fn(async () => 'Slide 1: overlapping title. VERDICT: needs fix');
-      const handler = makeReviewHandler({ conversationId: 'convo-xyz', reviewImages });
+      const reviewImages = jest.fn(
+        async () => 'SHIP_STATUS: do_not_ship\n\nSlide 1: overlapping title. VERDICT: needs fix',
+      );
+      const handler = makeReviewHandler({ conversationId: 'convo-delegate', reviewImages });
 
       const [result] = await invokeHandler(handler, [
         reviewCall({
@@ -1698,11 +1700,72 @@ describe('createToolExecuteHandler', () => {
       };
       expect(arg.imagePaths).toEqual(['/mnt/data/slide-01.png', '/mnt/data/slide-02.png']);
       expect(arg.brief).toContain('Mattoni 1873');
-      expect(arg.conversationId).toBe('convo-xyz');
+      expect(arg.conversationId).toBe('convo-delegate');
       expect(arg.expectations).toEqual(['Title', 'Content']);
       expect(result.status).toBe('success');
       expect(result.content).toContain('overlapping title');
       expect(result.content).toContain('call review_slides again');
+    });
+
+    it('forces a fix-and-re-render cycle on the FIRST non-clean review before delivery', async () => {
+      const reviewImages = jest.fn(
+        async () => 'SHIP_STATUS: ship_with_notes\n\nSlide 2: minor - spacing is slightly uneven.',
+      );
+      const handler = makeReviewHandler({ conversationId: 'convo-firstpass', reviewImages });
+
+      const [result] = await invokeHandler(handler, [
+        reviewCall({ image_paths: ['/mnt/data/slide-01.png'], brief: 'a deck' }),
+      ]);
+
+      expect(result.status).toBe('success');
+      expect(result.content).toContain('Do NOT deliver yet');
+      expect(result.content).toContain('call review_slides again');
+      // First pass must not yet hand out the "deliver with disclosure" escape.
+      expect(result.content).not.toContain('you may deliver now');
+      expect(result.content).not.toContain('Visual QA status: ship.');
+    });
+
+    it('allows degraded delivery only AFTER a fix cycle (second non-clean pass)', async () => {
+      const reviewImages = jest.fn(
+        async () => 'SHIP_STATUS: ship_with_notes\n\nSlide 2: minor - spacing is slightly uneven.',
+      );
+      const handler = makeReviewHandler({ conversationId: 'convo-secondpass', reviewImages });
+      const call = reviewCall({ image_paths: ['/mnt/data/slide-01.png'], brief: 'a deck' });
+
+      await invokeHandler(handler, [call]);
+      const [result] = await invokeHandler(handler, [call]);
+
+      expect(result.status).toBe('success');
+      expect(result.content).toContain('Visual QA status: degraded');
+      expect(result.content).toContain('Visual QA: Degraded');
+      expect(result.content).not.toContain('Visual QA status: ship.');
+    });
+
+    it('keeps blocking delivery while a blocker (do_not_ship) remains after a fix cycle', async () => {
+      const reviewImages = jest.fn(
+        async () => 'SHIP_STATUS: do_not_ship\n\nSlide 1: blocker - title cut off.',
+      );
+      const handler = makeReviewHandler({ conversationId: 'convo-blocker', reviewImages });
+      const call = reviewCall({ image_paths: ['/mnt/data/slide-01.png'], brief: 'a deck' });
+
+      await invokeHandler(handler, [call]);
+      const [result] = await invokeHandler(handler, [call]);
+
+      expect(result.status).toBe('success');
+      expect(result.content).toContain('Visual QA status: do not ship');
+      expect(result.content).toContain('call review_slides again');
+    });
+
+    it('treats missing SHIP_STATUS as a non-clean result that forces a fix cycle', async () => {
+      const reviewImages = jest.fn(async () => 'Slide 1: no obvious issues.');
+      const handler = makeReviewHandler({ conversationId: 'convo-unknown', reviewImages });
+
+      const [result] = await invokeHandler(handler, [
+        reviewCall({ image_paths: ['/mnt/data/slide-01.png'], brief: 'a deck' }),
+      ]);
+
+      expect(result.status).toBe('success');
+      expect(result.content).toContain('Do NOT deliver yet');
     });
 
     it('caps the number of images forwarded to the reviewer', async () => {

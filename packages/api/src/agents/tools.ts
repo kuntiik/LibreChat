@@ -134,9 +134,17 @@ function buildReadFileDef(includeSkillFileInstructions: boolean): LCTool {
   return includeSkillFileInstructions ? READ_FILE_DEF : CODE_READ_FILE_DEF;
 }
 
-const REVIEW_SLIDES_DESCRIPTION = `Get a FRESH-EYES visual review of rendered slides (or any generated images) from a second reviewer that has NOT seen your code. Use this for QA after rendering a deck to images — you wrote the code, so you'll see what you intended, not what's actually there.
+const REVIEW_SLIDES_DESCRIPTION = `Get a FRESH-EYES visual review of rendered slides (or any generated images) from a second reviewer that has NOT seen your code. Use this for QA after rendering a deck to images - you wrote the code, so you'll see what you intended, not what's actually there.
 
-Render the slides to PNG/JPEG in the sandbox first, then call this with their paths and the original brief. The reviewer returns a per-slide list of concrete issues (overlaps, overflow, cut-off text, low contrast, misalignment, leftover placeholders, uneven spacing). Treat every issue as real: fix it, re-render, and review again until a pass comes back clean. Do not declare the deck done before at least one fix-and-review cycle.`;
+Render the slides to PNG/JPEG in the sandbox first, then call this with their paths and the original brief. The reviewer returns SHIP_STATUS plus a per-slide list of concrete issues (overlaps, overflow, cut-off text, low contrast, misalignment, leftover placeholders, uneven spacing). Treat every issue as real: fix it, re-render, and review again until SHIP_STATUS is "ship". Do not declare the deck done before at least one fix-and-review cycle.
+
+For deck work, prefer safe helper APIs and exact patterns over raw pptxgenjs guessing:
+- use deck.pptx.ShapeType.rect / roundRect / ellipse when you must add shapes directly.
+- prefer D.flow, D.card, D.chart, D.timeline, and D.assertClean before saving.
+- after a horizontal flow, start explanatory text at least 0.45in below the flow bottom so headings never collide with arrows or cards.
+- after final render, create or attach a contact-sheet image of all rendered slides when practical; it makes final visual QA faster.
+
+If the final SHIP_STATUS is "ship_with_notes" or "do_not_ship", use degraded language in the final reply: "Visual QA: Degraded" and list the residual slide issues. Never call a deck "passed" when warnings or visible defects remain.`;
 
 const REVIEW_SLIDES_PARAMETERS: LCTool['parameters'] = Object.freeze({
   type: 'object',
