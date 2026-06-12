@@ -366,6 +366,68 @@ describe('useAttachmentPreviewSync', () => {
     expect(inserted.previewError).toBe('render-timeout');
   });
 
+  it('does NOT rewrite the map once the live entry already matches the polled record (no update loop)', () => {
+    /* Regression for React #185 ("Maximum update depth exceeded"): the
+     * upsert effect lists `attachment` in its deps, and the parent's
+     * `useAttachments` merge mints a fresh `attachment` identity on
+     * every `messageAttachmentsMap` change. If the effect writes a new
+     * (structurally-equal) map unconditionally, that re-derives a new
+     * `attachment` → the effect re-fires → it writes again, forever.
+     * The updater must short-circuit to the SAME map reference when the
+     * existing entry already carries the resolved fields, so Recoil
+     * bails out and the cycle terminates. We assert the map reference is
+     * stable across a re-render that only changes the attachment's
+     * object identity (not its content). */
+    const ready: TFilePreview = {
+      file_id: fileId,
+      status: 'ready',
+      text: '<table>final</table>',
+      textFormat: 'html',
+    };
+    mockUseFilePreview.mockReset();
+    mockUseFilePreview.mockReturnValue({ data: ready, isFetching: false });
+
+    const mapRefs: Array<Record<string, TAttachment[] | undefined>> = [];
+    const resolvedEntry = makeAttachment({
+      status: 'ready',
+      text: '<table>final</table>',
+      textFormat: 'html',
+    });
+    const Probe = () => {
+      const map = useRecoilValue(store.messageAttachmentsMap);
+      useEffect(() => {
+        mapRefs.push(map);
+      });
+      return null;
+    };
+
+    const { rerender } = renderHook(
+      ({ attachment }: { attachment: TAttachment }) => useAttachmentPreviewSync(attachment),
+      {
+        initialProps: { attachment: { ...resolvedEntry } },
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <RecoilRoot
+            initializeState={(snap) => {
+              snap.set(store.messageAttachmentsMap, { [messageId]: [resolvedEntry] });
+            }}
+          >
+            <Probe />
+            {children}
+          </RecoilRoot>
+        ),
+      },
+    );
+
+    /* Force re-renders with a brand-new (structurally-equal) attachment
+     * object each time — simulating `useAttachments` re-deriving the
+     * merged entry. The map reference must NOT change. */
+    rerender({ attachment: { ...resolvedEntry } });
+    rerender({ attachment: { ...resolvedEntry } });
+
+    const distinctMaps = new Set(mapRefs);
+    expect(distinctMaps.size).toBe(1);
+  });
+
   describe('previewJustResolved signal (auto-open trigger)', () => {
     /* The signal is the bridge to ToolArtifactCard's auto-open path:
      * the card mounts after the routing re-runs (post-transition), so

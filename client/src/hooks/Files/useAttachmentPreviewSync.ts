@@ -175,12 +175,30 @@ export default function useAttachmentPreviewSync(
       };
       if (existingIndex >= 0) {
         const existing = messageAttachments[existingIndex] as Partial<TFile> & TAttachment;
+        const nextText = polled.text ?? existing.text ?? null;
+        const nextTextFormat = polled.textFormat ?? existing.textFormat ?? null;
+        /* Idempotency gate: if the existing entry already carries the
+         * resolved fields, return the SAME map reference so Recoil bails
+         * out. Without this, every render writes a new (structurally
+         * equal) object; `useAttachments` then re-derives a fresh
+         * `attachment` identity, this effect's `attachment` dep changes,
+         * and the upsert fires again — an unbounded update loop that
+         * trips React error #185 on any loaded conversation whose
+         * deferred preview has resolved. */
+        if (
+          existing.status === resolvedFields.status &&
+          existing.previewError === resolvedFields.previewError &&
+          existing.text === nextText &&
+          existing.textFormat === nextTextFormat
+        ) {
+          return prevMap;
+        }
         const merged = [...messageAttachments];
         merged[existingIndex] = {
           ...existing,
           ...resolvedFields,
-          text: polled.text ?? existing.text ?? null,
-          textFormat: polled.textFormat ?? existing.textFormat ?? null,
+          text: nextText,
+          textFormat: nextTextFormat,
         } as TAttachment;
         return { ...prevMap, [messageId]: merged };
       }
