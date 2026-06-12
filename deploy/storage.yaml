@@ -1,0 +1,12 @@
+# Deploy-only config for the new-mchat instance (Railway service `new-librechat`).
+#
+# Loaded ONLY when CONFIG_PATH points here (set on new-librechat). It is NOT at
+# the default `librechat.yaml` path, so local dev and other instances ignore it
+# and keep the default `local` file strategy — only new-mchat switches to S3.
+#
+# Routes file storage to the Railway MinIO bucket so agent/skill/conversation
+# files are shared across instances and survive redeploys instead of living on a
+# per-instance local volume. S3 connection details (endpoint, bucket,
+# credentials, region) come from the AWS_* environment variables on the service.
+version: 1.3.11
+fileStrategy: "s3"
