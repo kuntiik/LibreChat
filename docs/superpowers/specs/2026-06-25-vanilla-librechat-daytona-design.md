@@ -138,3 +138,16 @@ Daytona Cloud — kuntik/librechat-skills:<tag> image
   multi-turn file reuse end-to-end.
 - **Storage config parity.** Vanilla storage config must reproduce what the old
   routing code did; verify upload/download round-trips.
+
+## Follow-up decision (2026-06-30): session continuity
+
+The session model was validated live and a decision recorded separately:
+**ephemeral per-run sandboxes with file-based continuity — NOT sticky
+per-conversation sandboxes.** LibreChat stays fully vanilla (no `patch-package`,
+no `thread_id` forwarding). `/mnt/data` does not persist across turns; continuity
+is via referenced/uploaded files reloaded from storage. The "Session E2E" bullet
+above (turn 2 rehydrating by a replayed minted session) holds **only when the
+model references the file** — a bare `/mnt/data` path does not. See
+`2026-06-30-session-continuity-decision.md` for mechanics, empirical evidence,
+the operational contract, and the Option-A escape hatch if sticky sandboxes are
+later required.
