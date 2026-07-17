@@ -44,3 +44,32 @@ endpoints:
     # `recursionLimit=1000` variable, which otherwise does nothing on its own.
     recursionLimit: 1000
     maxRecursionLimit: 1000
+
+# Tosca Cloud (Tricentis) MCP server, native streamable-http + OAuth — no
+# mcp-remote/npx bridge needed, since LibreChat itself speaks OAuth for
+# remote MCP servers. Path assumes the "default" workspace — swap "default"
+# for a workspace ID if Mattoni uses a named workspace instead.
+#
+# This replaces an earlier mcp-remote/stdio version of this entry. That
+# approach ran mcp-remote as a subprocess that opens ITS OWN local browser
+# flow against 127.0.0.1:<port> — fine on a laptop, unusable on Railway
+# (headless container, no browser, that port unreachable from outside it).
+#
+# The native path below has no such problem: `requiresOAuth` routes this
+# through LibreChat's per-user OAuth handling (packages/api/src/mcp/utils.ts),
+# whose redirect_uri defaults to LibreChat's OWN public route —
+# /api/mcp/ToscaCloudMcpServer/oauth/callback on whatever domain LibreChat is
+# served from (see api/server/routes/mcp.js: oauth/initiate + oauth/callback).
+# A user just clicks "Connect" on this server in the UI, logs into Okta like
+# any other SSO prompt, and is redirected straight back into the app — no
+# CLI, no tunnel, and each person authenticates with their own identity
+# (this is intentionally per-user, not a single shared service account).
+mcpServers:
+  ToscaCloudMcpServer:
+    type: streamable-http
+    url: https://mattoni-1873-a-s-cloudalm.my-sap.tricentis.com/default/_mcp/api/mcp
+    requiresOAuth: true
+    oauth:
+      client_id: MCPServer
+      scope: tta
+    timeout: 120000
