@@ -1,0 +1,46 @@
+# MattoniChat (LibreChat) custom configuration
+# Docs: https://www.librechat.ai/docs/configuration/librechat_yaml
+#
+# Most Railway env vars (APP_TITLE, CUSTOM_FOOTER, HELP_AND_FAQ_URL, ENDPOINTS,
+# OPENAI_MODELS, GOOGLE_MODELS, SEARCH, CHECK_BALANCE, etc.) are read directly
+# from .env and do NOT need to be duplicated here. This file only holds settings
+# that have no .env equivalent (e.g. endpoints.agents.recursionLimit) or that
+# benefit from being explicit (e.g. wiring the web search provider keys).
+
+version: 1.3.13
+
+cache: true
+
+interface:
+  customWelcome: 'Welcome to MChat!'
+  fileSearch: true
+  modelSelect: true
+  parameters: true
+  presets: true
+  prompts:
+    use: true
+    create: true
+  bookmarks: true
+  multiConvo: true
+  agents:
+    use: true
+    create: true
+
+# Wires up the search provider (Serper), scraper (Firecrawl) and reranker (Jina)
+# keys already present in the Railway env (SEARCH=true enables the feature).
+# Providers/scraper/reranker are set explicitly since leaving them unset makes
+# LibreChat try every credentialed service in the category.
+webSearch:
+  serperApiKey: '${SERPER_API_KEY}'
+  searchProvider: serper
+  firecrawlApiKey: '${FIRECRAWL_API_KEY}'
+  scraperProvider: firecrawl
+  jinaApiKey: '${JINA_API_KEY}'
+  rerankerType: jina
+
+endpoints:
+  agents:
+    # No .env equivalent for this — value carried over from the Railway
+    # `recursionLimit=1000` variable, which otherwise does nothing on its own.
+    recursionLimit: 1000
+    maxRecursionLimit: 1000

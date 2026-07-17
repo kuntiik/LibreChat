@@ -74,6 +74,9 @@ bower_components/
 #config file
 librechat.yaml
 librechat.yml
+# Tracked deliberately for this deployment — Railway builds straight from the
+# git checkout (Dockerfile `COPY . .`), so the file must be committed to ship.
+!librechat.yaml
 
 # Environment
 .npmrc
