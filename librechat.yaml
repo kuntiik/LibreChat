@@ -73,11 +73,3 @@ mcpServers:
       client_id: MCPServer
       scope: tta
     timeout: 120000
-
-  ado-remote:
-    type: stdio
-    command: npx
-    args:
-      - -y
-      - mcp-remote
-      - https://mcp.dev.azure.com/1873mattoni
