@@ -73,3 +73,9 @@ mcpServers:
       client_id: MCPServer
       scope: tta
     timeout: 120000
+    
+  leaflet-monitor:
+      type: streamable-http
+      url: https://leaflet-mcp.livelypebble-298eba33.swedencentral.azurecontainerapps.io/mcp
+      headers:
+        Authorization: "Bearer 6e234a720bc4227c1e0431802be6f3c82fbc1786d00d6da0"
