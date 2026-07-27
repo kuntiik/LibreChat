@@ -127,9 +127,18 @@ mcpServers:
   # on Railway it is the real private domain; locally docker-compose.override.yml maps
   # the same name to the Docker host via extra_hosts. Headers DO support ${VAR} (they are
   # resolved per call by processMCPEnv), which is why the secret can stay templated.
+  # requiresOAuth: false is REQUIRED, not cosmetic. Left unset, LibreChat auto-detects by
+  # sending a bare HEAD probe that carries NONE of the headers below, so the bridge sees no
+  # X-Bridge-Secret and rejects it. LibreChat reads any 401/403 as an OAuth challenge
+  # (MCP_OAUTH_ON_AUTH_ERROR), then refuses to use the perfectly good authenticated
+  # connection and fails while hunting for OAuth endpoints the bridge does not have:
+  #   "OAuth Required: true" ... "Failed to initiate OAuth flow HTTP 404"
+  # Setting it explicitly short-circuits detection (MCPServerInspector.detectOAuth returns
+  # early when requiresOAuth != null). The bridge authenticates by shared secret, not OAuth.
   power-automate:
     type: streamable-http
     url: http://flowagent-bridge.railway.internal:8791/mcp
+    requiresOAuth: false
     timeout: 120000
     headers:
       X-Bridge-Secret: "${BRIDGE_SHARED_SECRET}"
