@@ -74,7 +74,7 @@ mcpServers:
       scope: tta
     timeout: 120000
     
-  leaflet-monitor:
+  rozbite-nepouziva-leaflet:
       type: streamable-http
       url: https://leaflet-mcp.livelypebble-298eba33.swedencentral.azurecontainerapps.io/mcp
       headers:
