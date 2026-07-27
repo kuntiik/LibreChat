@@ -74,8 +74,42 @@ mcpServers:
       scope: tta
     timeout: 120000
     
-  rozbite-nepouziva-leaflet:
+  dontuse-leaflet:
       type: streamable-http
       url: https://leaflet-mcp.livelypebble-298eba33.swedencentral.azurecontainerapps.io/mcp
       headers:
         Authorization: "Bearer 6e234a720bc4227c1e0431802be6f3c82fbc1786d00d6da0"
+
+
+  # Power Automate (FlowAgent), via the flowagent-bridge service.
+  #
+  # The FlowAgent engine speaks stdio only and authenticates by shelling out to the
+  # Azure CLI, so it cannot run as a `type: stdio` entry inside this container (no `az`,
+  # no token cache) and cannot be driven as an OAuth resource server (it has no code path
+  # that accepts a supplied bearer token). It runs behind ../flowagent-bridge instead.
+  #
+  # PER-USER IDENTITY: the {{LIBRECHAT_USER_ID}} placeholder below is load-bearing, not
+  # decorative. Its mere presence in `headers` makes requiresUserScopedConnection() true
+  # (packages/api/src/mcp/utils.ts), which forces LibreChat to give each user their own
+  # MCP connection and to re-resolve these headers on every tool call. The bridge keys a
+  # separate Azure login off that id, so each employee acts as themselves with their own
+  # Power Automate permissions. Remove the placeholder and every user silently collapses
+  # onto one shared Azure identity — which would let anyone trigger, read, and edit other
+  # employees' flows and the business data flowing through them.
+  #
+  # The URL is deliberately literal, not ${VAR}: env substitution does NOT happen for
+  # mcpServers.*.url at startup — MCPServerInspector reads config.url raw
+  # (packages/api/src/mcp/registry/MCPServerInspector.ts:136) and nothing interpolates
+  # during config load, so a templated URL fails with `Domain "unknown" is not allowed`
+  # and the server never registers. One hostname therefore serves both environments:
+  # on Railway it is the real private domain; locally docker-compose.override.yml maps
+  # the same name to the Docker host via extra_hosts. Headers DO support ${VAR} (they are
+  # resolved per call by processMCPEnv), which is why the secret can stay templated.
+  power-automate:
+    type: streamable-http
+    url: http://flowagent-bridge.railway.internal:8791/mcp
+    timeout: 120000
+    headers:
+      X-Bridge-Secret: "${BRIDGE_SHARED_SECRET}"
+      X-LibreChat-User-Id: "{{LIBRECHAT_USER_ID}}"
+      X-LibreChat-User-Email: "{{LIBRECHAT_USER_EMAIL}}"
