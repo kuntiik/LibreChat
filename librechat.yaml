@@ -64,21 +64,43 @@ endpoints:
 # any other SSO prompt, and is redirected straight back into the app — no
 # CLI, no tunnel, and each person authenticates with their own identity
 # (this is intentionally per-user, not a single shared service account).
+
+# REQUIRED for the power-automate server below, and unfortunately all-or-nothing.
+#
+# The flowagent-bridge resolves into private IP space (host.docker.internal -> 172.17.0.1
+# locally, an IPv6 ULA on Railway), which LibreChat's SSRF guard blocks. Only
+# mcpSettings.allowedAddresses can exempt it — without this block, power-automate fails
+# with `Domain "http://flowagent-bridge.railway.internal:8791" is not allowed`.
+#
+# THE TRAP: allowedDomains is a GLOBAL allowlist, not a per-server exemption. The moment it
+# is non-empty, isMCPDomainAllowed() (packages/api/src/auth/domain.ts) denies EVERY server
+# whose host is missing from it — including public HTTPS ones that previously needed no
+# allowlisting at all. Omitting Tosca and leaflet here silently broke both for hours; their
+# tool counts are 0 until a user connects via OAuth, so nothing obvious surfaced.
+# => Any new mcpServers entry MUST have its hostname added here too.
+#
+# Neither field supports ${VAR} (api/server/services/MCP.js reads them straight off the
+# parsed config), so local and Railway hostnames are both listed literally.
+mcpSettings:
+  allowedDomains:
+    - leaflet-mcp.livelypebble-298eba33.swedencentral.azurecontainerapps.io
+    - host.docker.internal
+    - flowagent-bridge.railway.internal
+  # Only private-IP targets need an address exemption; the public hosts above are not SSRF
+  # candidates. host:port pairs, so only the bridge's own port becomes reachable.
+  # The port here must match what the bridge actually binds — set PORT=8791 on the Railway
+  # service, otherwise Railway assigns 8080 and this no longer lines up.
+  allowedAddresses:
+    - host.docker.internal:8791
+    - flowagent-bridge.railway.internal:8791
+
 mcpServers:
-  ToscaCloudMcpServer:
-    type: streamable-http
-    url: https://mattoni-1873-a-s-cloudalm.my-sap.tricentis.com/default/_mcp/api/mcp
-    requiresOAuth: true
-    oauth:
-      client_id: MCPServer
-      scope: tta
-    timeout: 120000
-    
-  dontuse-leaflet:
-      type: streamable-http
-      url: https://leaflet-mcp.livelypebble-298eba33.swedencentral.azurecontainerapps.io/mcp
-      headers:
-        Authorization: "Bearer 6e234a720bc4227c1e0431802be6f3c82fbc1786d00d6da0"
+      
+  # dontuse-leaflet:
+  #     type: streamable-http
+  #     url: https://leaflet-mcp.livelypebble-298eba33.swedencentral.azurecontainerapps.io/mcp
+  #     headers:
+  #       Authorization: "Bearer 6e234a720bc4227c1e0431802be6f3c82fbc1786d00d6da0"
 
 
   # Power Automate (FlowAgent), via the flowagent-bridge service.
