@@ -40,6 +40,13 @@ scoped to the primed skill — edit all copies together.
 
 ### Differences from upstream
 
+- **Per-user sign-in.** Upstream assumes the operator ran `az login` in a terminal, and its `setup`
+  skill covered that. Here `flowagent-bridge` injects a tool the engine does not have —
+  `power_automate_connect_account` — which starts a device-code login scoped to the individual
+  LibreChat user. Nobody is signed in by default. `flowagent-routing` documents the flow, when to
+  offer it, and when *not* to (a license/permission error means the user is already authenticated,
+  so re-connecting loops them for nothing). It's in every skill's `allowed-tools` so a skill invoked
+  by a signed-out user can still reach it.
 - Tool names are rewritten to LibreChat's MCP form: `<tool>_mcp_power-automate` (upstream uses
   `mcp__flowagent__<tool>`). If the `power-automate` server in `librechat.yaml` is ever renamed,
   every `allowed-tools` list here must be updated to match.

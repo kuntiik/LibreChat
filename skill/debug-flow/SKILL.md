@@ -4,6 +4,7 @@ description: Debug a failed Power Automate flow run interactively - find the run
 user-invocable: true
 argument-hint: "[flow-id] [run-id]"
 allowed-tools:
+  - power_automate_connect_account_mcp_power-automate
   - list_environments_mcp_power-automate
   - get_current_env_mcp_power-automate
   - resolve_environment_mcp_power-automate

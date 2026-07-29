@@ -4,6 +4,7 @@ description: Guided step-by-step wizard for creating a Power Automate flow, conf
 user-invocable: true
 argument-hint: "[what the flow should do]"
 allowed-tools:
+  - power_automate_connect_account_mcp_power-automate
   - list_environments_mcp_power-automate
   - set_current_env_mcp_power-automate
   - get_current_env_mcp_power-automate

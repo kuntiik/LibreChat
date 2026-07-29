@@ -4,6 +4,7 @@ description: Manage environment resolution — check which environment you creat
 user-invocable: true
 argument-hint: "[list|check|set]"
 allowed-tools:
+  - power_automate_connect_account_mcp_power-automate
   - list_environments_mcp_power-automate
   - set_current_env_mcp_power-automate
   - get_current_env_mcp_power-automate

@@ -4,6 +4,7 @@ description: Autonomously build a complete Power Automate flow from a descriptio
 user-invocable: true
 argument-hint: "<description>"
 allowed-tools:
+  - power_automate_connect_account_mcp_power-automate
   - list_environments_mcp_power-automate
   - set_current_env_mcp_power-automate
   - get_current_env_mcp_power-automate
